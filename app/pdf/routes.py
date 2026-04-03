@@ -4,7 +4,7 @@ from app.models.ticket import Ticket
 from app.pdf.generator import PDFGenerator
 from io import BytesIO
 
-pdf_bp = Blueprint('pdf', __name__, template_folder='templates')
+pdf_bp = Blueprint('pdf', __name__, template_folder='templates', url_prefix='/pdf')
 
 @pdf_bp.route('/generate/<int:ticket_id>', methods=['POST'])
 @login_required
@@ -52,4 +52,3 @@ def generate(ticket_id):
     except Exception as e:
         current_app.logger.error(f"PDF generation error: {str(e)}")
         abort(500)
-

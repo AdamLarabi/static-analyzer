@@ -17,10 +17,10 @@ class PDFGenerator:
             
             # Generate PDF
             if output_path:
-                HTML(string=html_content).write_pdf(output_path)
+                HTML(string=html_content, base_url=current_app.root_path).write_pdf(output_path)
                 return output_path
             else:
-                return HTML(string=html_content).write_pdf()
+                return HTML(string=html_content, base_url=current_app.root_path).write_pdf()
         except Exception as e:
             current_app.logger.error(f"Error generating PDF: {str(e)}")
             return None

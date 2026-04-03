@@ -98,6 +98,17 @@
         border-color: var(--border);
     }
 
+    /* Badge styles */
+    .badge-admin {
+        color: var(--acc-violet);
+        border-color: var(--acc-violet);
+    }
+
+    .badge-analyst {
+        color: var(--acc-cyan);
+        border-color: var(--acc-cyan);
+    }
+
     /* Create user modal */
     .create-form .form-group {
         margin-bottom: 14px;
@@ -140,9 +151,9 @@
                 </td>
                 <td style="color:var(--text-dim);">{{ u.email }}</td>
                 <td>
-                    <span class="pill {% if u.is_admin %}"
-                        style="color:var(--acc-violet);border-color:var(--acc-violet);">admin{% else
-                        %}badge-analyst">analyst{% endif %}</span>
+                    <span class="pill {% if u.is_admin %}badge-admin{% else %}badge-analyst{% endif %}">
+                        {% if u.is_admin %}admin{% else %}analyst{% endif %}
+                    </span>
                 </td>
                 <td>
                     {% if u.id != current_user.id %}
@@ -249,8 +260,8 @@
     const permStates = {};
     {% for u in users %}
     permStates[{{ u.id }}] = {
-        save_ticket: { { 'true' if u.has_permission('save_ticket') else 'false' } },
-        generate_pdf: { { 'true' if u.has_permission('generate_pdf') else 'false' } },
+        save_ticket: {{ 'true' if u.has_permission('save_ticket') else 'false' }},
+        generate_pdf: {{ 'true' if u.has_permission('generate_pdf') else 'false' }},
     };
     {% endfor %}
 

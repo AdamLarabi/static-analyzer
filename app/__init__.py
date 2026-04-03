@@ -6,6 +6,7 @@ Pattern Application Factory : permet de créer plusieurs instances
 
 import os
 import logging
+from datetime import datetime
 from logging.handlers import RotatingFileHandler
 
 from flask import Flask
@@ -36,6 +37,11 @@ def create_app(env: str = None) -> Flask:
 
     # ── Blueprints ───────────────────────────────────────────────────────────
     _register_blueprints(app)
+
+    # ── Context Processor ───────────────────────────────────────────────────
+    @app.context_processor
+    def inject_now():
+        return {'now': datetime.utcnow()}
 
     # ── Création des tables (si elles n'existent pas) ─────────────────────────
     with app.app_context():
