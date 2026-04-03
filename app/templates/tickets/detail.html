@@ -1,0 +1,521 @@
+{% extends "base.html" %}
+{% block title %}Ticket #{{ ticket.id }} — {{ ticket.filename }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .ticket-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 28px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
+    }
+
+    .ticket-title {
+        font-family: var(--serif);
+        font-size: 26px;
+        font-weight: 900;
+        color: var(--text-head);
+    }
+
+    .ticket-title small {
+        font-size: 14px;
+        color: var(--text-dim);
+        font-family: var(--mono);
+        font-weight: 400;
+        margin-left: 8px;
+    }
+
+    .ticket-meta {
+        font-size: 11px;
+        color: var(--text-dim);
+        margin-top: 6px;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .ticket-meta strong {
+        color: var(--text);
+    }
+
+    .ticket-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .hash-val {
+        font-size: 11px;
+        color: var(--acc-green);
+        background: rgba(26, 219, 126, .06);
+        border: 1px solid rgba(26, 219, 126, .15);
+        border-radius: 4px;
+        padding: 7px 10px;
+        word-break: break-all;
+    }
+
+    .hash-label {
+        font-size: 9px;
+        letter-spacing: .14em;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 5px;
+        margin-top: 12px;
+    }
+
+    .score-big {
+        font-family: var(--serif);
+        font-size: 48px;
+        font-weight: 900;
+        font-style: italic;
+    }
+
+    .kv {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .kv:last-child {
+        border-bottom: none;
+    }
+
+    .kv-key {
+        color: var(--text-dim);
+        font-size: 11px;
+        white-space: nowrap;
+    }
+
+    .kv-val {
+        color: var(--text-head);
+        text-align: right;
+        word-break: break-all;
+        font-size: 12px;
+    }
+
+    /* Tags */
+    .tags-area {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+    }
+
+    .tag-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 10px;
+        background: rgba(0, 212, 255, .1);
+        border: 1px solid rgba(0, 212, 255, .25);
+        color: var(--acc-cyan);
+        cursor: pointer;
+        transition: background .15s;
+    }
+
+    .tag-item:hover {
+        background: rgba(255, 59, 92, .1);
+        border-color: var(--acc-red);
+        color: var(--acc-red);
+    }
+
+    .tag-item .del {
+        font-size: 12px;
+        line-height: 1;
+    }
+
+    .tag-input-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .tag-input {
+        flex: 1;
+        padding: 7px 12px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        color: var(--text-head);
+        font-family: var(--mono);
+        font-size: 11px;
+    }
+
+    .tag-input:focus {
+        outline: none;
+        border-color: var(--acc-cyan);
+    }
+
+    .tag-suggestions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 8px;
+    }
+
+    .tag-sug {
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 9px;
+        border: 1px dashed rgba(0, 212, 255, .25);
+        color: var(--text-dim);
+        cursor: pointer;
+        transition: all .15s;
+    }
+
+    .tag-sug:hover {
+        border-color: var(--acc-cyan);
+        color: var(--acc-cyan);
+    }
+
+    /* Notes */
+    .note-item {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 14px 16px;
+        margin-bottom: 8px;
+    }
+
+    .note-meta {
+        font-size: 10px;
+        color: var(--text-dim);
+        margin-bottom: 8px;
+        display: flex;
+        gap: 10px;
+    }
+
+    .note-content {
+        font-size: 12px;
+        color: var(--text);
+        line-height: 1.65;
+        white-space: pre-wrap;
+    }
+
+    /* PDF Modal */
+    .pdf-form-modal .form-group {
+        margin-bottom: 14px;
+    }
+
+    .alert-strip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: var(--r);
+        margin-top: 10px;
+        font-size: 12px;
+        border-left: 3px solid;
+    }
+
+    .alert-strip.danger {
+        background: rgba(255, 59, 92, .07);
+        border-color: var(--acc-red);
+        color: #fca5a5;
+    }
+
+    .alert-strip.warn {
+        background: rgba(234, 179, 8, .07);
+        border-color: var(--acc-yellow);
+        color: #fde68a;
+    }
+
+    .alert-strip.ok {
+        background: rgba(26, 219, 126, .07);
+        border-color: var(--acc-green);
+        color: #6ee7b7;
+    }
+
+    .vt-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 12px;
+        font-size: 11px;
+        color: var(--acc-cyan);
+        text-decoration: none;
+        border-bottom: 1px solid rgba(0, 212, 255, .3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── TICKET HEADER ── #}
+<div class="ticket-header">
+    <div>
+        <div class="ticket-title">
+            {{ ticket.filename }}
+            <small>#{{ ticket.id }}</small>
+        </div>
+        <div class="ticket-meta">
+            <span>Créé : <strong>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</strong></span>
+            <span>Analyste : <strong>{{ ticket.owner.username }}</strong></span>
+            <span>Type : <strong>{{ ticket.file_type }}</strong></span>
+            <span>SHA-256 : <strong>{{ ticket.sha256[:20] }}...</strong></span>
+        </div>
+    </div>
+    <div class="ticket-actions">
+        {% if can_pdf %}
+        <button class="btn btn-violet" onclick="document.getElementById('pdf-modal').classList.add('open')">📄 Générer
+            PDF</button>
+        {% endif %}
+        <a class="btn btn-ghost" href="{{ ticket.vt_url }}" target="_blank" rel="noopener">🔗 VirusTotal</a>
+        <a class="btn btn-ghost" href="{{ url_for('tickets.list_tickets') }}">← Retour</a>
+        <form action="{{ url_for('tickets.delete_ticket', ticket_id=ticket.id) }}" method="POST"
+            onsubmit="return confirm('Supprimer ce ticket définitivement ?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-danger" type="submit">🗑 Supprimer</button>
+        </form>
+    </div>
+</div>
+
+{# ── ROW 1 : Score + Hashes ── #}
+<div class="grid-2">
+    <div class="card" style="text-align:center;">
+        <div class="section-head">
+            <div class="section-head-line"></div>
+            <h2>Score de menace</h2>
+        </div>
+        <div class="score-big" style="color:
+      {% if ticket.threat_level == 'CRITICAL' %}var(--acc-red)
+      {% elif ticket.threat_level == 'HIGH' %}var(--acc-orange)
+      {% elif ticket.threat_level == 'MEDIUM' %}var(--acc-yellow)
+      {% else %}var(--acc-green){% endif %};">
+            {{ ticket.threat_score }}
+        </div>
+        <div style="font-size:12px;margin-top:4px;color:var(--text-dim);">/ 100</div>
+        <span class="pill sev-{{ ticket.threat_level|lower }}" style="margin-top:10px;display:inline-block;">
+            {{ ticket.threat_level }}
+        </span>
+        {% if ticket.comment %}
+        <div
+            style="margin-top:16px;text-align:left;padding:12px;background:var(--surface2);border-radius:var(--r);font-size:11px;color:var(--text);line-height:1.6;">
+            <div style="font-size:9px;color:var(--text-dim);margin-bottom:4px;">COMMENTAIRE INITIAL</div>
+            {{ ticket.comment }}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line"></div>
+            <h2>Hashes</h2><span class="section-tag">INTÉGRITÉ</span>
+        </div>
+        <div class="hash-label">MD5</div>
+        <div class="hash-val">{{ ticket.md5 or 'N/A' }}</div>
+        <div class="hash-label">SHA-1</div>
+        <div class="hash-val">{{ ticket.sha1 or 'N/A' }}</div>
+        <div class="hash-label">SHA-256</div>
+        <div class="hash-val">{{ ticket.sha256 }}</div>
+        <a class="vt-link" href="{{ ticket.vt_url }}" target="_blank" rel="noopener">🔗 Voir sur VirusTotal →</a>
+    </div>
+</div>
+
+{# ── TAGS ── #}
+<div class="grid-1">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line" style="background:var(--acc-violet);"></div>
+            <h2>Tags</h2><span class="section-tag">CLASSIFICATION</span>
+        </div>
+        <div class="tags-area" id="tags-area">
+            {% for tag in ticket.tags %}
+            <span class="tag-item" onclick="removeTag('{{ tag }}')">
+                {{ tag }} <span class="del">×</span>
+            </span>
+            {% endfor %}
+            {% if not ticket.tags %}
+            <span style="font-size:11px;color:var(--text-dim);">Aucun tag — ajoutez-en ci-dessous</span>
+            {% endif %}
+        </div>
+        <div class="tag-input-row">
+            <input class="tag-input" id="new-tag" placeholder="Ajouter un tag..."
+                onkeydown="if(event.key==='Enter'){addTag();}">
+            <button class="btn btn-ghost" style="padding:6px 14px;" onclick="addTag()">+</button>
+        </div>
+        <div class="tag-suggestions">
+            {% for t in suggested_tags %}
+            <span class="tag-sug" onclick="quickTag('{{ t }}')">{{ t }}</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{# ── NOTES ── #}
+<div class="grid-2">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line" style="background:var(--acc-cyan);"></div>
+            <h2>Notes d'investigation</h2><span class="section-tag">{{ notes|length }} note(s)</span>
+        </div>
+        {% if notes %}
+        {% for note in notes %}
+        <div class="note-item">
+            <div class="note-meta">
+                <span>{{ note.author.username if note.author else 'inconnu' }}</span>
+                <span>·</span>
+                <span>{{ note.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</span>
+            </div>
+            <div class="note-content">{{ note.content }}</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty">Aucune note — ajoutez vos observations</div>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line" style="background:var(--acc-green);"></div>
+            <h2>Ajouter une note</h2>
+        </div>
+        <form action="{{ url_for('tickets.add_note', ticket_id=ticket.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group" style="margin-bottom:12px;">
+                <textarea class="form-input" name="content" rows="5"
+                    placeholder="Observations, IOCs, contexte, liens de référence..."
+                    style="min-height:120px;"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Ajouter la note</button>
+        </form>
+    </div>
+</div>
+
+{# ── RÉSULTATS DE L'ANALYSE (depuis le JSON sauvegardé) ── #}
+{% if data %}
+{# YARA #}
+{% if data.yara_matches %}
+<div class="grid-1">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line"></div>
+            <h2>YARA</h2>
+        </div>
+        {% for m in data.yara_matches %}
+        <div
+            style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:6px;">
+            <span class="pill sev-{{ m.severity }}">{{ m.severity }}</span>
+            <div>
+                <div style="font-family:var(--serif);font-weight:700;color:var(--text-head);">{{ m.rule }}</div>
+                <div style="font-size:11px;color:var(--text-dim);">{{ m.description }}</div>
+            </div>
+            {% if m.mitre %}<span class="pill"
+                style="color:var(--acc-violet);border-color:var(--acc-violet);margin-left:auto;">{{ m.mitre }}</span>{%
+            endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# MITRE #}
+{% if data.mitre_techniques %}
+<div class="grid-1">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line" style="background:var(--acc-violet);"></div>
+            <h2>MITRE ATT&amp;CK</h2>
+        </div>
+        {% for t in data.mitre_techniques %}
+        <div
+            style="display:grid;grid-template-columns:80px 1fr;gap:12px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:6px;">
+            <div
+                style="font-family:var(--serif);font-weight:700;font-style:italic;color:var(--acc-violet);font-size:14px;">
+                {{ t.technique_id }}</div>
+            <div>
+                <div style="font-family:var(--serif);font-weight:600;color:var(--text-head);">{{ t.name }}</div>
+                <div style="font-size:10px;color:var(--text-dim);">{{ t.tactic }}</div>
+                <a href="{{ t.url }}" target="_blank" style="font-size:10px;color:var(--acc-cyan);">att&ck.mitre.org
+                    →</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+{# ── MODAL PDF ── #}
+{% if can_pdf %}
+<div class="modal-overlay pdf-form-modal" id="pdf-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="document.getElementById('pdf-modal').classList.remove('open')">×</button>
+        <h3>📄 Générer le rapport PDF</h3>
+        <form action="{{ url_for('pdf.generate', ticket_id=ticket.id) }}" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label class="form-label">Nom du client</label>
+                <input class="form-input" name="client_name" placeholder="Entreprise ou particulier...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Logo (PNG, JPG, SVG — max 2 Mo)</label>
+                <input class="form-input" type="file" name="logo" accept=".png,.jpg,.jpeg,.svg,.gif">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">
+                Télécharger le PDF
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    const ticketId = {{ ticket.id }};
+    let currentTags = {{ ticket.tags | tojson }};
+
+    async function saveTags() {
+        await fetch(`/tickets/${ticketId}/tags`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+            body: JSON.stringify({ tags: currentTags }),
+        });
+        renderTags();
+    }
+
+    function renderTags() {
+        const area = document.getElementById('tags-area');
+        if (currentTags.length === 0) {
+            area.innerHTML = '<span style="font-size:11px;color:var(--text-dim);">Aucun tag</span>';
+            return;
+        }
+        area.innerHTML = currentTags.map(tag =>
+            `<span class="tag-item" onclick="removeTag('${tag}')">${tag} <span class="del">×</span></span>`
+        ).join('');
+    }
+
+    function addTag() {
+        const input = document.getElementById('new-tag');
+        const val = input.value.trim().toLowerCase();
+        if (val && !currentTags.includes(val)) {
+            currentTags.push(val); saveTags();
+        }
+        input.value = '';
+    }
+
+    function quickTag(tag) {
+        if (!currentTags.includes(tag)) { currentTags.push(tag); saveTags(); }
+    }
+
+    function removeTag(tag) {
+        currentTags = currentTags.filter(t => t !== tag); saveTags();
+    }
+
+    function getCsrf() {
+        return document.querySelector('[name=csrf_token]')?.value || '';
+    }
+
+    document.getElementById('pdf-modal')?.addEventListener('click', e => {
+        if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+    });
+</script>
+{% endblock %}

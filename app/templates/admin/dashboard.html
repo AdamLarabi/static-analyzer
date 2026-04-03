@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+{% block title %}Dashboard Admin{% endblock %}
+
+{% block extra_head %}
+<style>
+    .page-header {
+        margin-bottom: 28px;
+    }
+
+    .page-header h1 {
+        font-family: var(--serif);
+        font-size: 28px;
+        font-weight: 900;
+        color: var(--text-head);
+    }
+
+    .page-header p {
+        font-size: 12px;
+        color: var(--text-dim);
+        margin-top: 4px;
+    }
+
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        margin-bottom: 24px;
+    }
+
+    @media(max-width:900px) {
+        .stat-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+    }
+
+    .stat-card.cyan::before {
+        background: var(--acc-cyan);
+    }
+
+    .stat-card.violet::before {
+        background: var(--acc-violet);
+    }
+
+    .stat-card.red::before {
+        background: var(--acc-red);
+    }
+
+    .stat-card.green::before {
+        background: var(--acc-green);
+    }
+
+    .stat-num {
+        font-family: var(--serif);
+        font-size: 42px;
+        font-weight: 900;
+        font-style: italic;
+        color: var(--text-head);
+        line-height: 1;
+    }
+
+    .stat-lbl {
+        font-size: 11px;
+        color: var(--text-dim);
+        margin-top: 6px;
+    }
+
+    .stat-sub {
+        font-size: 10px;
+        color: var(--text-dim);
+        margin-top: 3px;
+        opacity: .7;
+    }
+
+    /* Alerts banner */
+    .alerts-banner {
+        background: rgba(255, 59, 92, .07);
+        border: 1px solid rgba(255, 59, 92, .25);
+        border-radius: var(--r);
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .alerts-banner-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .alerts-banner-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--acc-red);
+        box-shadow: 0 0 8px var(--acc-red);
+        flex-shrink: 0;
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: .4;
+        }
+    }
+
+    .alerts-banner-text {
+        font-size: 13px;
+        color: #fca5a5;
+    }
+
+    .alerts-banner-text strong {
+        color: var(--acc-red);
+    }
+
+    /* Threat distribution */
+    .threat-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .threat-bar-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .threat-bar-label {
+        font-size: 11px;
+        width: 70px;
+        flex-shrink: 0;
+    }
+
+    .threat-bar-track {
+        flex: 1;
+        height: 8px;
+        background: var(--surface2);
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .threat-bar-fill {
+        height: 100%;
+        border-radius: 4px;
+    }
+
+    .threat-bar-val {
+        font-size: 11px;
+        color: var(--text-dim);
+        width: 24px;
+        text-align: right;
+    }
+
+    /* Tables */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    thead th {
+        font-size: 10px;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        padding: 9px 13px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    tbody tr {
+        border-bottom: 1px solid var(--border);
+        transition: background .12s;
+    }
+
+    tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    tbody tr:hover {
+        background: var(--surface2);
+    }
+
+    tbody td {
+        padding: 11px 13px;
+        font-size: 12px;
+        vertical-align: middle;
+    }
+
+    /* Yara ranking */
+    .yara-rank {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .yara-rank:last-child {
+        border-bottom: none;
+    }
+
+    .yara-rank-num {
+        font-family: var(--serif);
+        font-size: 18px;
+        font-weight: 700;
+        font-style: italic;
+        color: var(--acc-cyan);
+        width: 32px;
+        flex-shrink: 0;
+    }
+
+    .yara-rank-bar-wrap {
+        flex: 1;
+    }
+
+    .yara-rank-name {
+        font-size: 12px;
+        color: var(--text-head);
+        margin-bottom: 4px;
+    }
+
+    .yara-rank-bar-track {
+        height: 4px;
+        background: var(--surface2);
+        border-radius: 2px;
+    }
+
+    .yara-rank-bar-fill {
+        height: 100%;
+        border-radius: 2px;
+        background: var(--acc-cyan);
+    }
+
+    .yara-rank-count {
+        font-size: 11px;
+        color: var(--text-dim);
+        width: 30px;
+        text-align: right;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Dashboard Administrateur</h1>
+    <p>Vue globale de la plateforme et alertes critiques</p>
+</div>
+
+{# ── ALERTE CRITIQUE ── #}
+{% if alerts %}
+<div class="alerts-banner">
+    <div class="alerts-banner-left">
+        <div class="alerts-banner-dot"></div>
+        <div class="alerts-banner-text">
+            <strong>{{ alerts|length }} analyse(s)</strong> avec un score ≥ {{ alert_threshold }} — intervention
+            recommandée
+        </div>
+    </div>
+    <a class="btn btn-danger" href="{{ url_for('admin.alerts') }}" style="padding:6px 14px;font-size:11px;">
+        Voir les alertes →
+    </a>
+</div>
+{% endif %}
+
+{# ── STATS ── #}
+<div class="stat-grid">
+    <div class="stat-card cyan">
+        <div class="stat-num">{{ total_tickets }}</div>
+        <div class="stat-lbl">Analyses sauvegardées</div>
+        <div class="stat-sub">{{ tickets_month }} ce mois</div>
+    </div>
+    <div class="stat-card violet">
+        <div class="stat-num">{{ total_users }}</div>
+        <div class="stat-lbl">Utilisateurs</div>
+        <div class="stat-sub">{{ total_analysts }} analyste(s)</div>
+    </div>
+    <div class="stat-card red">
+        <div class="stat-num">{{ threat_dist.CRITICAL }}</div>
+        <div class="stat-lbl">Scores critiques</div>
+        <div class="stat-sub">≥ {{ alert_threshold }}/100</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-num">{{ threat_dist.LOW }}</div>
+        <div class="stat-lbl">Score faible</div>
+        <div class="stat-sub">Confirmés propres</div>
+    </div>
+</div>
+
+{# ── ROW : Distribution + YARA ── #}
+<div class="grid-2">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line"></div>
+            <h2>Distribution des menaces</h2>
+        </div>
+        {% set total = (threat_dist.CRITICAL + threat_dist.HIGH + threat_dist.MEDIUM + threat_dist.LOW) or 1 %}
+        <div class="threat-bars">
+            {% for level, color in
+            [('CRITICAL','var(--acc-red)'),('HIGH','var(--acc-orange)'),('MEDIUM','var(--acc-yellow)'),('LOW','var(--acc-green)')]
+            %}
+            <div class="threat-bar-row">
+                <span class="threat-bar-label" style="color:{{ color }};font-weight:600;font-size:10px;">{{ level
+                    }}</span>
+                <div class="threat-bar-track">
+                    <div class="threat-bar-fill"
+                        style="width:{{ (threat_dist[level] / total * 100)|round }}%;background:{{ color }};"></div>
+                </div>
+                <span class="threat-bar-val">{{ threat_dist[level] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line" style="background:var(--acc-violet);"></div>
+            <h2>Top YARA Rules</h2><span class="section-tag">DÉCLENCHEMENTS</span>
+        </div>
+        {% if top_yara %}
+        {% set max_count = top_yara[0][1] if top_yara else 1 %}
+        {% for rule, count in top_yara %}
+        <div class="yara-rank">
+            <div class="yara-rank-num">{{ loop.index }}</div>
+            <div class="yara-rank-bar-wrap">
+                <div class="yara-rank-name">{{ rule | replace('_', ' ') }}</div>
+                <div class="yara-rank-bar-track">
+                    <div class="yara-rank-bar-fill" style="width:{{ (count / max_count * 100)|round }}%;"></div>
+                </div>
+            </div>
+            <div class="yara-rank-count">{{ count }}</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty">Aucune règle YARA déclenchée</div>
+        {% endif %}
+    </div>
+</div>
+
+{# ── ACTIVITÉ PAR UTILISATEUR ── #}
+<div class="grid-1">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line"></div>
+            <h2>Activité des analystes</h2>
+            <a class="btn btn-ghost" href="{{ url_for('admin.users') }}"
+                style="margin-left:auto;padding:4px 12px;font-size:11px;">Gérer →</a>
+        </div>
+        {% if user_activity %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Analyste</th>
+                    <th>Statut</th>
+                    <th>Tickets</th>
+                    <th>Dernière analyse</th>
+                    <th>Permissions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ua in user_activity %}
+                <tr>
+                    <td style="color:var(--text-head);font-weight:500;">{{ ua.user.username }}</td>
+                    <td>
+                        {% if ua.user.is_active %}
+                        <span style="color:var(--acc-green);font-size:10px;">● Actif</span>
+                        {% else %}
+                        <span style="color:var(--acc-red);font-size:10px;">● Désactivé</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-family:var(--serif);font-size:18px;font-weight:700;font-style:italic;">{{
+                            ua.ticket_count }}</span>
+                    </td>
+                    <td style="color:var(--text-dim);font-size:11px;">
+                        {{ ua.last_analysis.strftime('%Y-%m-%d %H:%M') if ua.last_analysis else '—' }}
+                    </td>
+                    <td>
+                        <span
+                            style="font-size:10px;{% if ua.user.has_permission('save_ticket') %}color:var(--acc-green){% else %}color:var(--text-dim){% endif %};">
+                            💾 Save
+                        </span>
+                        &nbsp;
+                        <span
+                            style="font-size:10px;{% if ua.user.has_permission('generate_pdf') %}color:var(--acc-green){% else %}color:var(--text-dim){% endif %};">
+                            📄 PDF
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">Aucun analyste créé</div>
+        {% endif %}
+    </div>
+</div>
+
+{# ── ANALYSES RÉCENTES ── #}
+<div class="grid-1">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line" style="background:var(--acc-yellow);"></div>
+            <h2>Analyses récentes</h2>
+            <a class="btn btn-ghost" href="{{ url_for('tickets.list_tickets') }}"
+                style="margin-left:auto;padding:4px 12px;font-size:11px;">Voir tout →</a>
+        </div>
+        {% if recent_tickets %}
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Analyste</th>
+                    <th>Fichier</th>
+                    <th>Score</th>
+                    <th>Date</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in recent_tickets %}
+                <tr>
+                    <td style="color:var(--text-dim);font-size:11px;">#{{ t.id }}</td>
+                    <td style="font-size:11px;">{{ t.owner.username }}</td>
+                    <td
+                        style="color:var(--text-head);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        {{ t.filename }}</td>
+                    <td>
+                        <span style="font-family:var(--serif);font-weight:700;font-style:italic;font-size:16px;color:
+              {% if t.threat_level == 'CRITICAL' %}var(--acc-red)
+              {% elif t.threat_level == 'HIGH' %}var(--acc-orange)
+              {% elif t.threat_level == 'MEDIUM' %}var(--acc-yellow)
+              {% else %}var(--acc-green){% endif %};">
+                            {{ t.threat_score }}
+                        </span>
+                    </td>
+                    <td style="font-size:11px;color:var(--text-dim);">{{ t.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td><a class="btn btn-ghost" style="padding:3px 10px;font-size:10px;"
+                            href="{{ url_for('tickets.ticket_detail', ticket_id=t.id) }}">Voir</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">Aucune analyse sauvegardée</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block title %}Gestion des utilisateurs{% endblock %}
+
+{% block extra_head %}
+<style>
+    .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 28px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .page-header h1 {
+        font-family: var(--serif);
+        font-size: 26px;
+        font-weight: 900;
+        color: var(--text-head);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    thead th {
+        font-size: 10px;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        padding: 9px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+
+    tbody tr {
+        border-bottom: 1px solid var(--border);
+        transition: background .12s;
+    }
+
+    tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    tbody tr:hover {
+        background: var(--surface2);
+    }
+
+    tbody td {
+        padding: 12px 14px;
+        font-size: 12px;
+        vertical-align: middle;
+    }
+
+    .toggle-btn {
+        padding: 3px 10px;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        font-family: var(--mono);
+        font-size: 10px;
+        cursor: pointer;
+        background: none;
+        transition: all .15s;
+    }
+
+    .toggle-btn.active {
+        color: var(--acc-green);
+        border-color: rgba(26, 219, 126, .3);
+    }
+
+    .toggle-btn.inactive {
+        color: var(--acc-red);
+        border-color: rgba(255, 59, 92, .3);
+    }
+
+    .perm-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 10px;
+        border-radius: 3px;
+        font-size: 10px;
+        cursor: pointer;
+        border: 1px solid;
+        transition: all .15s;
+        background: none;
+        font-family: var(--mono);
+    }
+
+    .perm-toggle.on {
+        color: var(--acc-green);
+        border-color: rgba(26, 219, 126, .3);
+    }
+
+    .perm-toggle.off {
+        color: var(--text-dim);
+        border-color: var(--border);
+    }
+
+    /* Create user modal */
+    .create-form .form-group {
+        margin-bottom: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Gestion des utilisateurs</h1>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:4px;">{{ users|length }} compte(s) enregistré(s)</p>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('create-modal').classList.add('open')">+ Créer un
+        utilisateur</button>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Nom d'utilisateur</th>
+                <th>Email</th>
+                <th>Rôle</th>
+                <th>Statut</th>
+                <th>Permissions</th>
+                <th>Dernière connexion</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr id="user-row-{{ u.id }}">
+                <td style="color:var(--text-dim);font-size:11px;">{{ u.id }}</td>
+                <td style="color:var(--text-head);font-weight:500;">
+                    {{ u.username }}
+                    {% if u.id == current_user.id %}<span style="font-size:9px;color:var(--acc-cyan);"> (vous)</span>{%
+                    endif %}
+                </td>
+                <td style="color:var(--text-dim);">{{ u.email }}</td>
+                <td>
+                    <span class="pill {% if u.is_admin %}"
+                        style="color:var(--acc-violet);border-color:var(--acc-violet);">admin{% else
+                        %}badge-analyst">analyst{% endif %}</span>
+                </td>
+                <td>
+                    {% if u.id != current_user.id %}
+                    <button class="toggle-btn {% if u.is_active %}active{% else %}inactive{% endif %}"
+                        id="active-btn-{{ u.id }}" onclick="toggleActive({{ u.id }})">
+                        {% if u.is_active %}● Actif{% else %}● Inactif{% endif %}
+                    </button>
+                    {% else %}
+                    <span style="font-size:10px;color:var(--acc-green);">● Actif</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if not u.is_admin %}
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button class="perm-toggle {% if u.has_permission('save_ticket') %}on{% else %}off{% endif %}"
+                            id="perm-save-{{ u.id }}" onclick="togglePerm({{ u.id }}, 'save_ticket')">
+                            💾 Save
+                        </button>
+                        <button class="perm-toggle {% if u.has_permission('generate_pdf') %}on{% else %}off{% endif %}"
+                            id="perm-pdf-{{ u.id }}" onclick="togglePerm({{ u.id }}, 'generate_pdf')">
+                            📄 PDF
+                        </button>
+                    </div>
+                    {% else %}
+                    <span style="font-size:10px;color:var(--text-dim);">Toutes (admin)</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:11px;color:var(--text-dim);">
+                    {{ u.last_login.strftime('%Y-%m-%d %H:%M') if u.last_login else 'Jamais' }}
+                </td>
+                <td>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-ghost" style="padding:3px 10px;font-size:10px;"
+                            onclick="openResetModal({{ u.id }}, '{{ u.username }}')">Reset MDP</button>
+                        {% if u.id != current_user.id %}
+                        <form action="{{ url_for('admin.delete_user', user_id=u.id) }}" method="POST"
+                            onsubmit="return confirm('Supprimer {{ u.username }} et tous ses tickets ?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-danger" style="padding:3px 10px;font-size:10px;"
+                                type="submit">Supprimer</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{# ── MODAL CRÉER ── #}
+<div class="modal-overlay create-form" id="create-modal">
+    <div class="modal">
+        <button class="modal-close"
+            onclick="document.getElementById('create-modal').classList.remove('open')">×</button>
+        <h3>Créer un utilisateur</h3>
+        <form action="{{ url_for('admin.create_user') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label class="form-label">Nom d'utilisateur</label>
+                <input class="form-input" name="username" required placeholder="john_doe" pattern="[\w.\-]+"
+                    minlength="3" maxlength="64">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input class="form-input" name="email" type="email" required placeholder="john@example.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mot de passe (min. 8 caractères)</label>
+                <input class="form-input" name="password" type="password" required minlength="8">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Rôle</label>
+                <select class="form-input" name="role">
+                    <option value="analyst">Analyste</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Créer l'utilisateur</button>
+        </form>
+    </div>
+</div>
+
+{# ── MODAL RESET MDP ── #}
+<div class="modal-overlay" id="reset-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="document.getElementById('reset-modal').classList.remove('open')">×</button>
+        <h3>Réinitialiser le mot de passe</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;">Utilisateur : <strong id="reset-username"
+                style="color:var(--text-head);"></strong></p>
+        <form id="reset-form" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Nouveau mot de passe</label>
+                <input class="form-input" name="new_password" type="password" required minlength="8">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Confirmer</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Permissions toggle
+    const permStates = {};
+    {% for u in users %}
+    permStates[{{ u.id }}] = {
+        save_ticket: { { 'true' if u.has_permission('save_ticket') else 'false' } },
+        generate_pdf: { { 'true' if u.has_permission('generate_pdf') else 'false' } },
+    };
+    {% endfor %}
+
+    async function togglePerm(userId, perm) {
+        const newVal = !permStates[userId][perm];
+        const resp = await fetch(`/admin/users/${userId}/permissions`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+            body: JSON.stringify({ permission: perm, value: newVal }),
+        });
+        if (resp.ok) {
+            permStates[userId][perm] = newVal;
+            const key = perm === 'save_ticket' ? 'save' : 'pdf';
+            const btnId = `perm-${key}-${userId}`;
+            const btn = document.getElementById(btnId);
+            btn.className = `perm-toggle ${newVal ? 'on' : 'off'}`;
+        }
+    }
+
+    async function toggleActive(userId) {
+        const resp = await fetch(`/admin/users/${userId}/toggle-active`, {
+            method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
+        });
+        if (resp.ok) {
+            const json = await resp.json();
+            const btn = document.getElementById(`active-btn-${userId}`);
+            btn.textContent = json.active ? '● Actif' : '● Inactif';
+            btn.className = `toggle-btn ${json.active ? 'active' : 'inactive'}`;
+        }
+    }
+
+    function openResetModal(userId, username) {
+        document.getElementById('reset-username').textContent = username;
+        document.getElementById('reset-form').action = `/admin/users/${userId}/reset-password`;
+        document.getElementById('reset-modal').classList.add('open');
+    }
+
+    function getCsrf() { return document.querySelector('[name=csrf_token]')?.value || ''; }
+
+    document.querySelectorAll('.modal-overlay').forEach(mo => {
+        mo.addEventListener('click', e => { if (e.target === mo) mo.classList.remove('open'); });
+    });
+</script>
+{% endblock %}

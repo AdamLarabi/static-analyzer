@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion — Static Analyzer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=Geist+Mono:wght@300;400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #08090c;
+            --surface: #0d0f14;
+            --border: rgba(255, 255, 255, .07);
+            --acc-cyan: #00d4ff;
+            --acc-v: #7c5cff;
+            --acc-red: #ff3b5c;
+            --text: #c8cdd8;
+            --text-dim: #545b6e;
+            --text-h: #e8ecf3;
+            --mono: "Geist Mono", "Courier New", monospace;
+            --serif: "Fraunces", Georgia, serif;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            font-family: var(--mono);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0, 212, 255, .012) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 212, 255, .012) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+
+        .panel {
+            position: relative;
+            width: 100%;
+            max-width: 420px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 44px 38px;
+        }
+
+        .panel::before {
+            content: "";
+            position: absolute;
+            top: -1px;
+            left: 30px;
+            right: 30px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--acc-cyan), var(--acc-v));
+            border-radius: 0 0 2px 2px;
+        }
+
+        .eyebrow {
+            font-size: 9px;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+            color: var(--acc-cyan);
+            margin-bottom: 12px;
+        }
+
+        h1 {
+            font-family: var(--serif);
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--text-h);
+            line-height: 1.05;
+            letter-spacing: -.03em;
+            margin-bottom: 6px;
+        }
+
+        h1 span {
+            color: var(--acc-cyan);
+        }
+
+        .sub {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-bottom: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: .06em;
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 13px;
+            background: rgba(0, 0, 0, .3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-h);
+            font-family: var(--mono);
+            font-size: 12px;
+            transition: border-color .15s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--acc-cyan);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-dim);
+        }
+
+        .form-error {
+            font-size: 10px;
+            color: #fca5a5;
+            margin-top: 4px;
+        }
+
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .form-check input {
+            accent-color: var(--acc-cyan);
+        }
+
+        .form-check label {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 13px;
+            background: linear-gradient(90deg, var(--acc-cyan), var(--acc-v));
+            border: none;
+            border-radius: 7px;
+            color: #08090c;
+            font-family: var(--serif);
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity .2s;
+        }
+
+        .btn-submit:hover {
+            opacity: .85;
+        }
+
+        .flash {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 13px;
+            border-radius: 6px;
+            font-size: 11px;
+            margin-bottom: 16px;
+            border-left: 3px solid;
+        }
+
+        .flash-danger {
+            background: rgba(255, 59, 92, .07);
+            border-color: var(--acc-red);
+            color: #fca5a5;
+        }
+
+        .flash-info {
+            background: rgba(0, 212, 255, .07);
+            border-color: var(--acc-cyan);
+            color: #7dd3fc;
+        }
+
+        .flash-warning {
+            background: rgba(234, 179, 8, .07);
+            border-color: #f5c518;
+            color: #fde68a;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="panel">
+        <div class="eyebrow">Authentification requise</div>
+        <h1>Static<br><span>Analyzer</span></h1>
+        <p class="sub">Plateforme d'analyse statique de malwares</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div class="form-group">
+                {{ form.username.label(class="form-label") }}
+                {{ form.username(class="form-input", autofocus=true) }}
+                {% for err in form.username.errors %}
+                <div class="form-error">{{ err }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                {{ form.password.label(class="form-label") }}
+                {{ form.password(class="form-input") }}
+                {% for err in form.password.errors %}
+                <div class="form-error">{{ err }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="form-check">
+                {{ form.remember() }}
+                {{ form.remember.label(class="") }}
+            </div>
+
+            {{ form.submit(class="btn-submit") }}
+        </form>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Threat Report — {{ data.filename }}</title>
+    <style>
+        /* WeasyPrint : pas de Google Fonts (réseau non dispo) — on utilise les system fonts */
+        @page {
+            size: A4;
+            margin: 18mm 16mm 20mm 16mm;
+
+            @bottom-center {
+                content: "Page " counter(page) " / " counter(pages);
+                font-family: monospace;
+                font-size: 8pt;
+                color: #555;
+            }
+
+            @bottom-right {
+                content: "Confidentiel — {{ client_name or 'Usage interne' }}";
+                font-family: monospace;
+                font-size: 7pt;
+                color: #888;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            font-size: 9pt;
+            color: #1a1a2e;
+            line-height: 1.5;
+            background: #fff;
+        }
+
+        /* ── HEADER ── */
+        .report-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding-bottom: 14px;
+            border-bottom: 2px solid #0d0f14;
+            margin-bottom: 20px;
+        }
+
+        .report-header-left h1 {
+            font-size: 22pt;
+            font-weight: 900;
+            color: #0d0f14;
+            letter-spacing: -0.03em;
+            margin-bottom: 4px;
+        }
+
+        .report-header-left .sub {
+            font-size: 8pt;
+            color: #555;
+        }
+
+        .report-logo {
+            max-height: 56px;
+            max-width: 160px;
+            object-fit: contain;
+        }
+
+        .client-block {
+            font-size: 8pt;
+            color: #555;
+            text-align: right;
+            margin-top: 6px;
+        }
+
+        .client-name {
+            font-size: 10pt;
+            font-weight: 700;
+            color: #0d0f14;
+        }
+
+        /* ── SCORE BADGE ── */
+        .score-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 14px 16px;
+            border-radius: 6px;
+            margin-bottom: 18px;
+        }
+
+        .score-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .score-num {
+            font-size: 26pt;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .score-sub {
+            font-size: 7pt;
+            margin-top: 2px;
+        }
+
+        .score-level-big {
+            font-size: 16pt;
+            font-weight: 900;
+        }
+
+        .score-details {
+            font-size: 8pt;
+            color: #555;
+            margin-top: 4px;
+        }
+
+        /* ── SECTION ── */
+        .section {
+            margin-bottom: 16px;
+            page-break-inside: avoid;
+        }
+
+        .section-title {
+            font-size: 10pt;
+            font-weight: 700;
+            color: #0d0f14;
+            padding: 5px 10px;
+            background: #f0f1f5;
+            border-left: 3px solid #0d0f14;
+            margin-bottom: 8px;
+        }
+
+        /* ── TABLE ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8pt;
+        }
+
+        th {
+            background: #0d0f14;
+            color: #fff;
+            padding: 5px 8px;
+            text-align: left;
+            font-size: 7pt;
+            letter-spacing: 0.05em;
+        }
+
+        td {
+            padding: 5px 8px;
+            border-bottom: 1px solid #e8e8e8;
+            vertical-align: top;
+        }
+
+        tr:nth-child(even) td {
+            background: #f9f9fc;
+        }
+
+        /* ── HASH ── */
+        .hash-block {
+            margin-bottom: 6px;
+        }
+
+        .hash-label {
+            font-size: 7pt;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 2px;
+        }
+
+        .hash-val {
+            font-family: monospace;
+            font-size: 7.5pt;
+            color: #1a4a1a;
+            background: #f0faf0;
+            padding: 3px 6px;
+            border-radius: 3px;
+            word-break: break-all;
+        }
+
+        /* ── YARA ── */
+        .yara-item {
+            padding: 6px 10px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            border-left: 3px solid;
+        }
+
+        .yara-rule {
+            font-weight: 700;
+            font-size: 9pt;
+        }
+
+        .yara-desc {
+            font-size: 8pt;
+            color: #555;
+        }
+
+        .sev-critical {
+            border-color: #dc2626;
+            background: #fef2f2;
+        }
+
+        .sev-high {
+            border-color: #ea580c;
+            background: #fff7ed;
+        }
+
+        .sev-medium {
+            border-color: #ca8a04;
+            background: #fefce8;
+        }
+
+        .sev-low {
+            border-color: #16a34a;
+            background: #f0fdf4;
+        }
+
+        /* ── MITRE ── */
+        .mitre-item {
+            display: flex;
+            gap: 10px;
+            padding: 6px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .mitre-id {
+            font-weight: 900;
+            color: #5c3aff;
+            font-size: 9pt;
+            min-width: 60px;
+            flex-shrink: 0;
+        }
+
+        .mitre-body {}
+
+        .mitre-name {
+            font-weight: 700;
+            font-size: 8.5pt;
+        }
+
+        .mitre-tactic {
+            font-size: 7pt;
+            color: #888;
+        }
+
+        .mitre-url {
+            font-size: 7pt;
+            color: #0077cc;
+        }
+
+        /* ── STRINGS ── */
+        .string-row {
+            font-family: monospace;
+            font-size: 7pt;
+            padding: 3px 6px;
+            background: #f5f5f5;
+            border-radius: 2px;
+            margin-bottom: 2px;
+            word-break: break-all;
+        }
+
+        .string-meta {
+            font-size: 6.5pt;
+            color: #888;
+        }
+
+        /* ── ENTROPY BAR ── */
+        .entropy-bar-outer {
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 4px 0;
+        }
+
+        .entropy-bar-inner {
+            height: 100%;
+            border-radius: 4px;
+        }
+
+        /* ── VT BOX ── */
+        .vt-grid {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .vt-box {
+            flex: 1;
+            text-align: center;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .vt-num {
+            font-size: 20pt;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .vt-lbl {
+            font-size: 7pt;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        /* ── FOOTER ── */
+        .report-footer {
+            border-top: 1px solid #ddd;
+            padding-top: 8px;
+            font-size: 7pt;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        /* ── ALERT BOX ── */
+        .alert-box {
+            padding: 7px 12px;
+            border-radius: 4px;
+            font-size: 8pt;
+            margin-top: 6px;
+            border-left: 3px solid;
+        }
+
+        .alert-danger {
+            background: #fef2f2;
+            border-color: #dc2626;
+            color: #991b1b;
+        }
+
+        .alert-warn {
+            background: #fefce8;
+            border-color: #ca8a04;
+            color: #854d0e;
+        }
+
+        .alert-ok {
+            background: #f0fdf4;
+            border-color: #16a34a;
+            color: #166534;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <div class="report-header">
+        <div class="report-header-left">
+            <h1>Threat Intelligence Report</h1>
+            <div class="sub">Analyse statique de malware — {{ data.analysis_time }}</div>
+            <div class="sub">Fichier : <strong>{{ data.filename }}</strong></div>
+        </div>
+        <div style="text-align:right;">
+            {% if logo_data_uri %}
+            <img class="report-logo" src="{{ logo_data_uri }}" alt="Logo client">
+            {% endif %}
+            {% if client_name %}
+            <div class="client-block">Préparé pour<br><span class="client-name">{{ client_name }}</span></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- SCORE -->
+    {% set score = data.threat_score %}
+    {% set score_color = score.color %}
+    <div class="score-section"
+        style="background:{% if score.level == 'CRITICAL' %}#fef2f2{% elif score.level == 'HIGH' %}#fff7ed{% elif score.level == 'MEDIUM' %}#fefce8{% else %}#f0fdf4{% endif %};">
+        <div class="score-circle" style="border-color:{{ score_color }};color:{{ score_color }};">
+            <span class="score-num" style="color:{{ score_color }};">{{ score.score }}</span>
+            <span class="score-sub" style="color:{{ score_color }};">/100</span>
+        </div>
+        <div>
+            <div class="score-level-big" style="color:{{ score_color }};">{{ score.level }}</div>
+            <div class="score-details">Type : {{ data.file_type }} &nbsp;·&nbsp; Entropie : {{
+                "%.4f"|format(data.entropy) }}/8.0</div>
+            {% if data.compile_time and data.compile_time != 'N/A' %}
+            <div class="score-details">Compilation : {{ data.compile_time }}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- HASHES -->
+    <div class="section">
+        <div class="section-title">Empreintes cryptographiques</div>
+        <div class="hash-block">
+            <div class="hash-label">MD5</div>
+            <div class="hash-val">{{ data.hashes.md5 }}</div>
+        </div>
+        <div class="hash-block">
+            <div class="hash-label">SHA-1</div>
+            <div class="hash-val">{{ data.hashes.sha1 }}</div>
+        </div>
+        <div class="hash-block">
+            <div class="hash-label">SHA-256</div>
+            <div class="hash-val">{{ data.hashes.sha256 }}</div>
+        </div>
+    </div>
+
+    <!-- VIRUSTOTAL -->
+    {% if data.virustotal is mapping %}
+    <div class="section">
+        <div class="section-title">VirusTotal</div>
+        <div class="vt-grid">
+            <div class="vt-box">
+                <div class="vt-num" style="color:#dc2626;">{{ data.virustotal.malicious }}</div>
+                <div class="vt-lbl">Malicieux</div>
+            </div>
+            <div class="vt-box">
+                <div class="vt-num" style="color:#ca8a04;">{{ data.virustotal.suspicious }}</div>
+                <div class="vt-lbl">Suspects</div>
+            </div>
+            <div class="vt-box">
+                <div class="vt-num" style="color:#16a34a;">{{ data.virustotal.undetected }}</div>
+                <div class="vt-lbl">Non détectés</div>
+            </div>
+        </div>
+        {% if data.virustotal.malicious > 0 %}
+        <div class="alert-box alert-danger">Détecté par {{ data.virustotal.malicious }} moteur(s) — URL VT : {{
+            data.vt_url }}</div>
+        {% else %}
+        <div class="alert-box alert-ok">Aucune détection — {{ data.vt_url }}</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- YARA -->
+    {% if data.yara_matches %}
+    <div class="section">
+        <div class="section-title">Règles YARA déclenchées ({{ data.yara_matches|length }})</div>
+        {% for m in data.yara_matches %}
+        <div class="yara-item sev-{{ m.severity }}">
+            <div class="yara-rule">{{ m.rule }}</div>
+            <div class="yara-desc">{{ m.description }}{% if m.mitre %} — {{ m.mitre }}{% endif %}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- MITRE -->
+    {% if data.mitre_techniques %}
+    <div class="section">
+        <div class="section-title">MITRE ATT&CK ({{ data.mitre_techniques|length }} technique(s))</div>
+        {% for t in data.mitre_techniques %}
+        <div class="mitre-item">
+            <div class="mitre-id">{{ t.technique_id }}</div>
+            <div class="mitre-body">
+                <div class="mitre-name">{{ t.name }}</div>
+                <div class="mitre-tactic">{{ t.tactic }}</div>
+                <div style="font-size:7.5pt;color:#333;margin-top:2px;">{{ t.description }}</div>
+                <div class="mitre-url">{{ t.url }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- SUSPICIOUS STRINGS -->
+    {% if data.suspicious_strings and data.suspicious_strings.by_category %}
+    <div class="section">
+        <div class="section-title">Strings suspectes ({{ data.suspicious_strings.total_matches }} correspondances)</div>
+        {% for cat, items in data.suspicious_strings.by_category.items() %}
+        {% if items %}
+        <div style="margin-bottom:10px;">
+            <div
+                style="font-size:8pt;font-weight:700;color:#333;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em;">
+                {{ cat | replace('_', ' ') }} ({{ items|length }})
+            </div>
+            {% for item in items[:6] %}
+            <div class="string-row">
+                {{ item.string[:120] }}{% if item.string|length > 120 %}...{% endif %}
+                <span class="string-meta"> — {{ item.description }}{% if item.mitre %} [{{ item.mitre }}]{% endif
+                    %}</span>
+            </div>
+            {% endfor %}
+            {% if items|length > 6 %}<div style="font-size:7pt;color:#888;padding:2px 6px;">... et {{ items|length - 6
+                }} autre(s)</div>{% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- PE IMPORTS -->
+    {% if data.imports %}
+    <div class="section">
+        <div class="section-title">Imports PE ({{ data.imports|length }})</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>DLL : Fonction</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for imp in data.imports[:30] %}
+                <tr>
+                    <td>{{ imp }}</td>
+                </tr>
+                {% endfor %}
+                {% if data.imports|length > 30 %}<tr>
+                    <td style="color:#888;">... et {{ data.imports|length - 30 }} autre(s)</td>
+                </tr>{% endif %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- FOOTER -->
+    <div class="report-footer">
+        <span>Static Malware Analysis Framework</span>
+        <span>Généré le {{ generated_at }}</span>
+        <span>SHA-256 : {{ data.hashes.sha256[:20] }}...</span>
+    </div>
+
+</body>
+
+</html>

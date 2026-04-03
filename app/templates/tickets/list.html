@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block title %}Tickets{% endblock %}
+
+{% block extra_head %}
+<style>
+    .page-header {
+        margin-bottom: 28px;
+    }
+
+    .page-header h1 {
+        font-family: var(--serif);
+        font-size: 28px;
+        font-weight: 900;
+        color: var(--text-head);
+    }
+
+    .page-header p {
+        font-size: 12px;
+        color: var(--text-dim);
+        margin-top: 4px;
+    }
+
+    .tickets-table-wrap {
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    thead th {
+        font-size: 10px;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        padding: 10px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+    }
+
+    tbody tr {
+        border-bottom: 1px solid var(--border);
+        transition: background .12s;
+    }
+
+    tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    tbody tr:hover {
+        background: var(--surface2);
+    }
+
+    tbody td {
+        padding: 12px 14px;
+        font-size: 12px;
+        vertical-align: middle;
+    }
+
+    .filename-cell {
+        color: var(--text-head);
+        font-weight: 500;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .hash-cell {
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--text-dim);
+    }
+
+    .score-cell {
+        font-family: var(--serif);
+        font-weight: 700;
+        font-size: 18px;
+        font-style: italic;
+    }
+
+    .tag {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 9px;
+        background: rgba(0, 212, 255, .1);
+        border: 1px solid rgba(0, 212, 255, .2);
+        color: var(--acc-cyan);
+        margin: 1px;
+    }
+
+    .filter-bar {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-input {
+        padding: 7px 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        color: var(--text-head);
+        font-family: var(--mono);
+        font-size: 12px;
+        flex: 1;
+        min-width: 160px;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: var(--acc-cyan);
+    }
+
+    .filter-select {
+        padding: 7px 12px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        color: var(--text-head);
+        font-family: var(--mono);
+        font-size: 12px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-dim);
+    }
+
+    .empty-state h3 {
+        font-family: var(--serif);
+        font-size: 22px;
+        color: var(--text);
+        margin-bottom: 8px;
+    }
+
+    .stat-bar {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 14px 20px;
+        min-width: 110px;
+    }
+
+    .stat-num {
+        font-family: var(--serif);
+        font-size: 28px;
+        font-weight: 900;
+        font-style: italic;
+        color: var(--text-head);
+    }
+
+    .stat-lbl {
+        font-size: 10px;
+        color: var(--text-dim);
+        margin-top: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Mes Tickets{% if current_user.is_admin %} — Vue Globale{% endif %}</h1>
+    <p>{{ tickets|length }} ticket(s) sauvegardé(s)</p>
+</div>
+
+{# Stats rapides #}
+{% if tickets %}
+<div class="stat-bar">
+    <div class="stat-card">
+        <div class="stat-num">{{ tickets|length }}</div>
+        <div class="stat-lbl">Total</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-num" style="color:var(--acc-red);">{{
+            tickets|selectattr('threat_level','equalto','CRITICAL')|list|length }}</div>
+        <div class="stat-lbl">Critiques</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-num" style="color:var(--acc-orange);">{{
+            tickets|selectattr('threat_level','equalto','HIGH')|list|length }}</div>
+        <div class="stat-lbl">Élevés</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-num" style="color:var(--acc-green);">{{
+            tickets|selectattr('threat_level','equalto','LOW')|list|length }}</div>
+        <div class="stat-lbl">Faibles</div>
+    </div>
+</div>
+{% endif %}
+
+{# Filtres #}
+<div class="filter-bar">
+    <input class="filter-input" id="search-input" placeholder="Rechercher par nom, hash, tag..."
+        oninput="filterTickets()">
+    <select class="filter-select" id="level-filter" onchange="filterTickets()">
+        <option value="">Tous niveaux</option>
+        <option value="CRITICAL">CRITICAL</option>
+        <option value="HIGH">HIGH</option>
+        <option value="MEDIUM">MEDIUM</option>
+        <option value="LOW">LOW</option>
+    </select>
+</div>
+
+{% if tickets %}
+<div class="card" style="padding:0;overflow:hidden;">
+    <div class="tickets-table-wrap">
+        <table id="tickets-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    {% if current_user.is_admin %}<th>Analyste</th>{% endif %}
+                    <th>Fichier</th>
+                    <th>Type</th>
+                    <th>Score</th>
+                    <th>SHA-256</th>
+                    <th>Tags</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tickets %}
+                <tr data-level="{{ t.threat_level }}"
+                    data-search="{{ t.filename|lower }} {{ t.sha256 }} {{ t.tags|join(' ')|lower }} {{ t.owner.username|lower if current_user.is_admin }}">
+                    <td style="color:var(--text-dim);font-size:11px;">#{{ t.id }}</td>
+                    {% if current_user.is_admin %}
+                    <td style="font-size:11px;">{{ t.owner.username }}</td>
+                    {% endif %}
+                    <td class="filename-cell" title="{{ t.filename }}">{{ t.filename }}</td>
+                    <td><span class="pill" style="color:var(--acc-cyan);border-color:rgba(0,212,255,.3);">{{ t.file_type
+                            }}</span></td>
+                    <td>
+                        <span class="score-cell" style="color:
+              {% if t.threat_level == 'CRITICAL' %}var(--acc-red)
+              {% elif t.threat_level == 'HIGH' %}var(--acc-orange)
+              {% elif t.threat_level == 'MEDIUM' %}var(--acc-yellow)
+              {% else %}var(--acc-green){% endif %};">
+                            {{ t.threat_score }}
+                        </span>
+                        <span class="pill sev-{{ t.threat_level|lower }}" style="font-size:8px;">{{ t.threat_level
+                            }}</span>
+                    </td>
+                    <td class="hash-cell">{{ t.sha256[:16] }}...</td>
+                    <td>
+                        {% for tag in t.tags[:3] %}
+                        <span class="tag">{{ tag }}</span>
+                        {% endfor %}
+                    </td>
+                    <td style="font-size:11px;color:var(--text-dim);white-space:nowrap;">
+                        {{ t.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </td>
+                    <td>
+                        <a class="btn btn-ghost" style="padding:4px 10px;font-size:11px;"
+                            href="{{ url_for('tickets.ticket_detail', ticket_id=t.id) }}">Voir</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card empty-state">
+    <h3>Aucun ticket</h3>
+    <p>Analysez un fichier et sauvegardez le résultat pour créer votre premier ticket.</p>
+    <a class="btn btn-primary" href="{{ url_for('analysis.upload') }}"
+        style="margin-top:16px;display:inline-flex;">Analyser un fichier</a>
+</div>
+{% endif %}
+
+<script>
+    function filterTickets() {
+        const q = document.getElementById('search-input').value.toLowerCase();
+        const level = document.getElementById('level-filter').value;
+        document.querySelectorAll('#tickets-table tbody tr').forEach(row => {
+            const matchSearch = !q || row.dataset.search.includes(q);
+            const matchLevel = !level || row.dataset.level === level;
+            row.style.display = (matchSearch && matchLevel) ? '' : 'none';
+        });
+    }
+</script>
+{% endblock %}

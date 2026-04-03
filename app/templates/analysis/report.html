@@ -1,0 +1,863 @@
+{% extends "base.html" %}
+{% block title %}Rapport — {{ data.filename }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .header {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: start;
+        gap: 40px;
+        padding-bottom: 36px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 32px;
+    }
+
+    .header-eyebrow {
+        font-size: 10px;
+        letter-spacing: .18em;
+        color: var(--acc-cyan);
+        text-transform: uppercase;
+        margin-bottom: 12px;
+    }
+
+    .header-title {
+        font-family: var(--serif);
+        font-size: clamp(28px, 4vw, 48px);
+        font-weight: 900;
+        color: var(--text-head);
+        line-height: 1.05;
+        letter-spacing: -.03em;
+    }
+
+    .header-title span {
+        color: var(--acc-cyan);
+    }
+
+    .header-sub {
+        margin-top: 10px;
+        font-size: 11px;
+        color: var(--text-dim);
+    }
+
+    .header-sub strong {
+        color: var(--text);
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+    }
+
+    .score-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: 2px solid;
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    .score-badge::before {
+        content: "";
+        position: absolute;
+        inset: -8px;
+        border-radius: 50%;
+        border: 1px solid;
+        opacity: .2;
+    }
+
+    .score-num {
+        font-family: var(--serif);
+        font-size: 38px;
+        font-weight: 900;
+        line-height: 1;
+        font-style: italic;
+    }
+
+    .score-label {
+        font-size: 9px;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        margin-top: 4px;
+    }
+
+    .score-level {
+        font-size: 10px;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-top: 5px;
+    }
+
+    @media(max-width:800px) {
+        .header {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .hash-block {
+        margin-top: 14px;
+    }
+
+    .hash-block+.hash-block {
+        margin-top: 14px;
+    }
+
+    .hash-label {
+        font-size: 9px;
+        letter-spacing: .14em;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+
+    .hash-val {
+        font-size: 11px;
+        color: var(--acc-green);
+        background: rgba(26, 219, 126, .06);
+        border: 1px solid rgba(26, 219, 126, .15);
+        border-radius: 4px;
+        padding: 7px 10px;
+        word-break: break-all;
+    }
+
+    .entropy-bar-wrap {
+        margin-top: 16px;
+    }
+
+    .entropy-bar-track {
+        height: 6px;
+        background: var(--surface2);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .entropy-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        background: linear-gradient(90deg, var(--acc-green), var(--acc-yellow), var(--acc-red));
+        transition: width .8s;
+    }
+
+    .entropy-ticks {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 4px;
+    }
+
+    .entropy-ticks span {
+        font-size: 9px;
+        color: var(--text-dim);
+    }
+
+    .alert-strip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: var(--r);
+        margin-top: 12px;
+        font-size: 12px;
+        border-left: 3px solid;
+    }
+
+    .alert-strip.danger {
+        background: rgba(255, 59, 92, .07);
+        border-color: var(--acc-red);
+        color: #fca5a5;
+    }
+
+    .alert-strip.warn {
+        background: rgba(234, 179, 8, .07);
+        border-color: var(--acc-yellow);
+        color: #fde68a;
+    }
+
+    .alert-strip.ok {
+        background: rgba(26, 219, 126, .07);
+        border-color: var(--acc-green);
+        color: #6ee7b7;
+    }
+
+    .alert-strip.info {
+        background: rgba(0, 212, 255, .07);
+        border-color: var(--acc-cyan);
+        color: #7dd3fc;
+    }
+
+    .vt-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-top: 16px;
+    }
+
+    .vt-stat {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 14px;
+        text-align: center;
+    }
+
+    .vt-stat-num {
+        font-family: var(--serif);
+        font-size: 32px;
+        font-weight: 900;
+        line-height: 1;
+        font-style: italic;
+    }
+
+    .vt-stat-lbl {
+        font-size: 9px;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-top: 4px;
+    }
+
+    .vt-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 12px;
+        font-size: 11px;
+        color: var(--acc-cyan);
+        text-decoration: none;
+        border-bottom: 1px solid rgba(0, 212, 255, .3);
+    }
+
+    .vt-link:hover {
+        border-color: var(--acc-cyan);
+    }
+
+    .vt-refresh {
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        color: var(--text-dim);
+        font-family: var(--mono);
+        font-size: 11px;
+        padding: 5px 10px;
+        cursor: pointer;
+        transition: border-color .15s;
+    }
+
+    .vt-refresh:hover {
+        border-color: var(--acc-cyan);
+        color: var(--acc-cyan);
+    }
+
+    .yara-card {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .yara-card .rule-name {
+        font-family: var(--serif);
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--text-head);
+    }
+
+    .yara-card .rule-desc {
+        font-size: 11px;
+        color: var(--text-dim);
+        margin-top: 2px;
+    }
+
+    .mitre-row {
+        display: grid;
+        grid-template-columns: 90px 180px 1fr;
+        gap: 16px;
+        padding: 12px 14px;
+        margin-bottom: 6px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        align-items: start;
+        transition: border-color .15s;
+    }
+
+    .mitre-row:hover {
+        border-color: rgba(124, 92, 255, .3);
+    }
+
+    .mitre-id {
+        font-family: var(--serif);
+        font-size: 14px;
+        font-weight: 700;
+        font-style: italic;
+        color: var(--acc-violet);
+    }
+
+    .mitre-name {
+        font-family: var(--serif);
+        font-size: 13px;
+        color: var(--text-head);
+        font-weight: 600;
+    }
+
+    .mitre-tactic {
+        font-size: 10px;
+        color: var(--text-dim);
+        margin-top: 2px;
+    }
+
+    .mitre-desc {
+        font-size: 11px;
+        color: var(--text-dim);
+        line-height: 1.55;
+    }
+
+    .mitre-link {
+        display: inline-block;
+        margin-top: 5px;
+        font-size: 10px;
+        color: var(--acc-cyan);
+        text-decoration: none;
+        border-bottom: 1px solid rgba(0, 212, 255, .3);
+    }
+
+    .mitre-link:hover {
+        border-color: var(--acc-cyan);
+    }
+
+    /* Strings categories */
+    .cat-header {
+        font-size: 10px;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin: 12px 0 6px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .cat-badge {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 3px;
+        font-size: 9px;
+        margin-right: 4px;
+    }
+
+    .string-item {
+        font-size: 11px;
+        color: var(--text-head);
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 7px 10px;
+        margin-bottom: 4px;
+        word-break: break-all;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .string-meta {
+        font-size: 9px;
+        color: var(--text-dim);
+        margin-top: 2px;
+        white-space: nowrap;
+    }
+
+    /* Sections table */
+    .sections-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+    }
+
+    .sections-table th {
+        font-size: 10px;
+        color: var(--text-dim);
+        text-align: left;
+        padding: 6px 10px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .sections-table td {
+        padding: 7px 10px;
+        font-size: 11px;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .sections-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Type badge */
+    .type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: .08em;
+        border: 1px solid;
+        margin-left: 12px;
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── HEADER ── #}
+<div class="header">
+    <div>
+        <div class="header-eyebrow">Rapport d'Analyse Statique</div>
+        <h1 class="header-title">Threat Intelligence<br><span>Report</span>
+            <span class="type-badge"
+                style="color:var(--acc-cyan);border-color:rgba(0,212,255,.3);font-family:var(--mono);">
+                {{ data.file_type or 'UNKNOWN' }}
+            </span>
+        </h1>
+        <p class="header-sub">
+            Fichier : <strong>{{ data.filename }}</strong> &nbsp;·&nbsp;
+            Analysé : <strong>{{ data.analysis_time }}</strong>
+        </p>
+        <div class="header-actions">
+            {% if can_save %}
+            <button class="btn btn-primary" onclick="openSaveModal()">💾 Sauvegarder le ticket</button>
+            {% endif %}
+            <a class="btn btn-ghost" href="{{ url_for('analysis.upload') }}">← Nouvelle analyse</a>
+        </div>
+    </div>
+    <div class="score-badge" style="color:{{ data.threat_score.color }};border-color:{{ data.threat_score.color }};">
+        <div class="score-num" style="color:{{ data.threat_score.color }};">{{ data.threat_score.score }}</div>
+        <div class="score-label" style="color:{{ data.threat_score.color }};">/ 100</div>
+        <div class="score-level" style="color:{{ data.threat_score.color }};">{{ data.threat_score.level }}</div>
+    </div>
+</div>
+
+{# ── ROW 1 : File info + Hashes ── #}
+<div class="grid-2">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line"></div>
+            <h2>Informations fichier</h2><span class="section-tag">STATIC</span>
+        </div>
+        <div class="kv"><span class="kv-key">Nom</span><span class="kv-val">{{ data.filename }}</span></div>
+        <div class="kv"><span class="kv-key">Type détecté</span><span class="kv-val">{{ data.file_type }}</span></div>
+        {% if data.compile_time and data.compile_time != 'N/A' %}
+        <div class="kv"><span class="kv-key">Compilation</span><span class="kv-val">{{ data.compile_time }}</span></div>
+        {% endif %}
+        <div class="kv"><span class="kv-key">Entropie</span><span class="kv-val">{{ "%.4f"|format(data.entropy) }} /
+                8.0</span></div>
+        <div class="entropy-bar-wrap">
+            <div class="entropy-bar-track">
+                <div class="entropy-bar-fill" style="width:{{ (data.entropy / 8.0 * 100)|round }}%;"></div>
+            </div>
+            <div class="entropy-ticks"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span></div>
+        </div>
+        {% if data.entropy > 7.0 %}
+        <div class="alert-strip danger">Entropie élevée — possible chiffrement ou packing</div>
+        {% elif data.entropy > 6.0 %}
+        <div class="alert-strip warn">Entropie modérée — possible obfuscation</div>
+        {% else %}
+        <div class="alert-strip ok">Entropie dans la norme</div>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line"></div>
+            <h2>Hashes cryptographiques</h2><span class="section-tag">INTÉGRITÉ</span>
+        </div>
+        <div class="hash-block">
+            <div class="hash-label">MD5</div>
+            <div class="hash-val">{{ data.hashes.md5 }}</div>
+        </div>
+        <div class="hash-block">
+            <div class="hash-label">SHA-1</div>
+            <div class="hash-val">{{ data.hashes.sha1 }}</div>
+        </div>
+        <div class="hash-block">
+            <div class="hash-label">SHA-256</div>
+            <div class="hash-val">{{ data.hashes.sha256 }}</div>
+        </div>
+    </div>
+</div>
+
+{# ── VIRUSTOTAL ── #}
+<div class="grid-1">
+    <div class="card" id="vt-card">
+        <div class="section-head">
+            <div class="section-head-line"></div>
+            <h2>VirusTotal</h2>
+            <span class="section-tag">RÉPUTATION</span>
+            <button class="vt-refresh" onclick="refreshVT()" id="vt-btn" style="margin-left:8px;">↻ Actualiser</button>
+        </div>
+        <div id="vt-content">
+            {% if data.virustotal is mapping %}
+            <div class="vt-grid">
+                <div class="vt-stat">
+                    <div class="vt-stat-num" style="color:var(--acc-red);">{{ data.virustotal.malicious }}</div>
+                    <div class="vt-stat-lbl">Malicieux</div>
+                </div>
+                <div class="vt-stat">
+                    <div class="vt-stat-num" style="color:var(--acc-yellow);">{{ data.virustotal.suspicious }}</div>
+                    <div class="vt-stat-lbl">Suspects</div>
+                </div>
+                <div class="vt-stat">
+                    <div class="vt-stat-num" style="color:var(--acc-green);">{{ data.virustotal.undetected }}</div>
+                    <div class="vt-stat-lbl">Non détectés</div>
+                </div>
+            </div>
+            {% if data.virustotal.malicious > 0 %}
+            <div class="alert-strip danger">Détecté par {{ data.virustotal.malicious }} moteur(s) AV</div>
+            {% elif data.virustotal.suspicious > 0 %}
+            <div class="alert-strip warn">Suspect pour {{ data.virustotal.suspicious }} moteur(s)</div>
+            {% else %}
+            <div class="alert-strip ok">Aucune détection par les AV partenaires</div>
+            {% endif %}
+            {% else %}
+            <div class="alert-strip info">{{ data.virustotal }}</div>
+            {% endif %}
+        </div>
+        <a class="vt-link" href="{{ data.vt_url }}" target="_blank" rel="noopener">
+            🔗 Voir sur VirusTotal →
+        </a>
+    </div>
+</div>
+
+{# ── YARA ── #}
+<div class="grid-1">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line"></div>
+            <h2>YARA — Règles déclenchées</h2><span class="section-tag">SIGNATURES</span>
+        </div>
+        {% if data.yara_matches %}
+        {% for m in data.yara_matches %}
+        <div class="yara-card">
+            <div><span class="pill sev-{{ m.severity }}">{{ m.severity }}</span></div>
+            <div>
+                <div class="rule-name">{{ m.rule }}</div>
+                <div class="rule-desc">{{ m.description }}</div>
+            </div>
+            {% if m.mitre %}
+            <div><span class="pill" style="color:var(--acc-violet);border-color:var(--acc-violet);">{{ m.mitre }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty">Aucune règle YARA déclenchée</div>
+        {% endif %}
+    </div>
+</div>
+
+{# ── MITRE ── #}
+<div class="grid-1">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line" style="background:var(--acc-violet);"></div>
+            <h2>MITRE ATT&amp;CK</h2><span class="section-tag">TTP</span>
+        </div>
+        {% if data.mitre_techniques %}
+        {% for t in data.mitre_techniques %}
+        <div class="mitre-row">
+            <div class="mitre-id">{{ t.technique_id }}</div>
+            <div>
+                <div class="mitre-name">{{ t.name }}</div>
+                <div class="mitre-tactic">{{ t.tactic }}</div>
+            </div>
+            <div>
+                <div class="mitre-desc">{{ t.description }}</div>
+                <a class="mitre-link" href="{{ t.url }}" target="_blank" rel="noopener">att&ck.mitre.org →</a>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty">Aucune technique MITRE ATT&CK mappée</div>
+        {% endif %}
+    </div>
+</div>
+
+{# ── STRINGS PAR CATÉGORIE ── #}
+{% if data.suspicious_strings and data.suspicious_strings.by_category %}
+<div class="grid-1">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line" style="background:var(--acc-orange);"></div>
+            <h2>Strings Suspectes</h2>
+            <span class="section-tag">{{ data.suspicious_strings.total_matches }} correspondances</span>
+        </div>
+        {% set cat_colors = {
+        'execution': 'var(--acc-red)',
+        'download': 'var(--acc-orange)',
+        'credential_access':'#ff6eb4',
+        'lateral_movement':'var(--acc-violet)',
+        'defense_evasion': 'var(--acc-yellow)',
+        'persistence': 'var(--acc-cyan)',
+        'reconnaissance': 'var(--text-dim)',
+        'ransomware': 'var(--acc-red)',
+        'injection': '#ff6eb4',
+        'c2_network': 'var(--acc-orange)',
+        'anti_analysis': 'var(--acc-yellow)',
+        'keylogger': 'var(--acc-violet)',
+        'privilege_esc': 'var(--acc-red)',
+        } %}
+        {% for cat, items in data.suspicious_strings.by_category.items() %}
+        <div class="cat-header">
+            <span class="cat-badge"
+                style="background:rgba(255,255,255,.05);color:{{ cat_colors.get(cat, 'var(--text-dim)') }};border:1px solid {{ cat_colors.get(cat, 'var(--border)') }};">
+                {{ cat | replace('_', ' ') | upper }}
+            </span>
+            <span style="font-size:10px;color:var(--text-dim);">{{ items|length }} correspondance(s)</span>
+        </div>
+        <div class="scroll-list" style="max-height:180px;">
+            {% for item in items[:8] %}
+            <div class="string-item">
+                <div class="item-dot" style="background:{{ cat_colors.get(cat, 'var(--acc-cyan)') }};margin-top:4px;">
+                </div>
+                <div>
+                    <div>{{ item.string }}</div>
+                    <div class="string-meta">{{ item.description }} — <span class="pill sev-{{ item.severity }}"
+                            style="font-size:8px;">{{ item.severity }}</span> {% if item.mitre %}· {{ item.mitre }}{%
+                        endif %}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ── PE IMPORTS + SECTIONS ── #}
+{% if data.imports %}
+<div class="grid-2">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line"></div>
+            <h2>Imports PE</h2><span class="section-tag">BINAIRE</span>
+        </div>
+        <div class="scroll-list">
+            {% for imp in data.imports %}
+            <div class="item">
+                <div class="item-dot"></div>
+                <div>{{ imp }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% if data.sections %}
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line"></div>
+            <h2>Sections PE</h2><span class="section-tag">STRUCTURE</span>
+        </div>
+        <table class="sections-table">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Taille</th>
+                    <th>Entropie</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in data.sections %}
+                <tr>
+                    <td style="color:var(--text-head);">{{ s.name }}</td>
+                    <td>{{ s.size }}</td>
+                    <td
+                        style="color:{% if s.entropy > 7.0 %}var(--acc-red){% elif s.entropy > 6.0 %}var(--acc-yellow){% else %}var(--acc-green){% endif %};">
+                        {{ s.entropy }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{# ── PDF ANALYSIS ── #}
+{% if data.pdf_analysis %}
+<div class="grid-1">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line" style="background:var(--acc-red);"></div>
+            <h2>Analyse PDF</h2><span class="section-tag">DOCUMENT</span>
+        </div>
+        {% if data.pdf_analysis.suspicious %}
+        {% for s in data.pdf_analysis.suspicious %}
+        <div class="alert-strip danger">⚠ {{ s }}</div>
+        {% endfor %}
+        {% else %}
+        <div class="alert-strip ok">Aucun élément suspect détecté dans le PDF</div>
+        {% endif %}
+        {% if data.pdf_analysis.metadata %}
+        <div style="margin-top:12px;">
+            {% for k, v in data.pdf_analysis.metadata.items() %}{% if v %}
+            <div class="kv"><span class="kv-key">{{ k }}</span><span class="kv-val">{{ v }}</span></div>
+            {% endif %}{% endfor %}
+        </div>
+        {% endif %}
+        {% if data.pdf_analysis.urls %}
+        <div class="cat-header">URLs extraites</div>
+        <div class="scroll-list">
+            {% for url in data.pdf_analysis.urls[:10] %}
+            <div class="item">
+                <div class="item-dot" style="background:var(--acc-orange);"></div>
+                <div>{{ url }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# ── IMAGE ANALYSIS ── #}
+{% if data.image_analysis %}
+<div class="grid-1">
+    <div class="card">
+        <div class="section-head">
+            <div class="section-head-line" style="background:var(--acc-violet);"></div>
+            <h2>Analyse Image</h2><span class="section-tag">IMAGE</span>
+        </div>
+        {% if data.image_analysis.suspicious %}
+        {% for s in data.image_analysis.suspicious %}<div class="alert-strip warn">{{ s }}</div>{% endfor %}
+        {% else %}
+        <div class="alert-strip ok">Aucune anomalie détectée dans l'image</div>
+        {% endif %}
+        <div style="margin-top:12px;">
+            {% if data.image_analysis.format %}<div class="kv"><span class="kv-key">Format</span><span class="kv-val">{{
+                    data.image_analysis.format }}</span></div>{% endif %}
+            {% if data.image_analysis.size %}<div class="kv"><span class="kv-key">Dimensions</span><span
+                    class="kv-val">{{ data.image_analysis.size[0] }}×{{ data.image_analysis.size[1] }}</span></div>{%
+            endif %}
+            {% if data.image_analysis.mode %}<div class="kv"><span class="kv-key">Mode couleur</span><span
+                    class="kv-val">{{ data.image_analysis.mode }}</span></div>{% endif %}
+        </div>
+        {% if data.image_analysis.exif %}
+        <div class="cat-header">Métadonnées EXIF</div>
+        <div class="scroll-list" style="max-height:140px;">
+            {% for k, v in data.image_analysis.exif.items() %}
+            <div class="kv"><span class="kv-key">{{ k }}</span><span class="kv-val">{{ v }}</span></div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# ── MODAL SAVE TICKET ── #}
+{% if can_save %}
+<div class="modal-overlay" id="save-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeSaveModal()">×</button>
+        <h3>💾 Sauvegarder le ticket</h3>
+        <div class="form-group">
+            <label class="form-label">Commentaire initial</label>
+            <textarea class="form-input" id="ticket-comment" placeholder="Contexte, observations, origine du fichier..."
+                rows="3"></textarea>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Tags (séparés par virgule)</label>
+            <input class="form-input" id="ticket-tags" placeholder="ransomware, apt, trojan...">
+        </div>
+        <button class="btn btn-primary" style="width:100%;" onclick="saveTicket()">
+            Confirmer la sauvegarde
+        </button>
+        <div id="save-feedback" style="margin-top:10px;display:none;"></div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    // ── Save ticket ───────────────────────────────────────────────────
+    const reportData = {{ data | tojson }};
+
+    function openSaveModal() { document.getElementById('save-modal').classList.add('open'); }
+    function closeSaveModal() { document.getElementById('save-modal').classList.remove('open'); }
+
+    async function saveTicket() {
+        const comment = document.getElementById('ticket-comment').value;
+        const tagsRaw = document.getElementById('ticket-tags').value;
+        const tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
+
+        const resp = await fetch('/tickets/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+            body: JSON.stringify({ result: reportData, comment, tags }),
+        });
+        const json = await resp.json();
+        const fb = document.getElementById('save-feedback');
+        fb.style.display = 'block';
+
+        if (json.success) {
+            fb.innerHTML = '<div class="alert-strip ok">✔ Ticket sauvegardé ! Redirection...</div>';
+            setTimeout(() => window.location.href = json.redirect, 1200);
+        } else if (json.warning) {
+            fb.innerHTML = `<div class="alert-strip warn">${json.warning}</div>`;
+        } else {
+            fb.innerHTML = `<div class="alert-strip danger">Erreur : ${json.error || 'inconnue'}</div>`;
+        }
+    }
+
+    // ── VT Refresh ────────────────────────────────────────────────────
+    async function refreshVT() {
+        const btn = document.getElementById('vt-btn');
+        const content = document.getElementById('vt-content');
+        btn.textContent = '⏳ Chargement...'; btn.disabled = true;
+
+        try {
+            const sha256 = reportData.hashes.sha256;
+            const resp = await fetch(`/vt-check/${sha256}`);
+            const json = await resp.json();
+
+            if (json.stats) {
+                const s = json.stats;
+                content.innerHTML = `
+        <div class="vt-grid">
+          <div class="vt-stat"><div class="vt-stat-num" style="color:var(--acc-red);">${s.malicious || 0}</div><div class="vt-stat-lbl">Malicieux</div></div>
+          <div class="vt-stat"><div class="vt-stat-num" style="color:var(--acc-yellow);">${s.suspicious || 0}</div><div class="vt-stat-lbl">Suspects</div></div>
+          <div class="vt-stat"><div class="vt-stat-num" style="color:var(--acc-green);">${s.undetected || 0}</div><div class="vt-stat-lbl">Non détectés</div></div>
+        </div>
+        ${(s.malicious || 0) > 0
+                        ? `<div class="alert-strip danger">Détecté par ${s.malicious} moteur(s) AV</div>`
+                        : `<div class="alert-strip ok">Aucune détection</div>`}
+      `;
+            } else {
+                content.innerHTML = `<div class="alert-strip info">${json.message || 'Non trouvé dans VirusTotal'}</div>`;
+            }
+        } catch (e) {
+            content.innerHTML = `<div class="alert-strip danger">Erreur réseau</div>`;
+        }
+        btn.textContent = '↻ Actualiser'; btn.disabled = false;
+    }
+
+    function getCsrf() {
+        const m = document.cookie.match(/csrftoken=([^;]+)/);
+        return m ? m[1] : document.querySelector('[name=csrf_token]')?.value || '';
+    }
+
+    // Fermer la modal en cliquant à l'extérieur
+    document.getElementById('save-modal')?.addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeSaveModal();
+    });
+</script>
+{% endblock %}

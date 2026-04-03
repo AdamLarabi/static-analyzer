@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Alertes critiques{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;">
+    <div>
+        <h1 style="font-family:var(--serif);font-size:26px;font-weight:900;color:var(--text-head);">
+            ⚠ Alertes Critiques
+        </h1>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:4px;">
+            Analyses avec un score ≥ {{ threshold }} — {{ alerts|length }} alerte(s)
+        </p>
+    </div>
+    <a class="btn btn-ghost" href="{{ url_for('admin.dashboard') }}">← Dashboard</a>
+</div>
+
+{% if alerts %}
+<div style="display:flex;flex-direction:column;gap:10px;">
+    {% for t in alerts %}
+    <div
+        style="background:var(--surface);border:1px solid rgba(255,59,92,.2);border-left:3px solid var(--acc-red);border-radius:var(--r);padding:16px 20px;display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;">
+        <div style="text-align:center;min-width:60px;">
+            <div style="font-family:var(--serif);font-size:36px;font-weight:900;font-style:italic;color:
+        {% if t.threat_level == 'CRITICAL' %}var(--acc-red)
+        {% elif t.threat_level == 'HIGH' %}var(--acc-orange)
+        {% else %}var(--acc-yellow){% endif %};">{{ t.threat_score }}</div>
+            <span class="pill sev-{{ t.threat_level|lower }}" style="font-size:8px;">{{ t.threat_level }}</span>
+        </div>
+        <div>
+            <div style="font-family:var(--serif);font-size:16px;font-weight:700;color:var(--text-head);">{{ t.filename
+                }}</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:4px;display:flex;gap:14px;flex-wrap:wrap;">
+                <span>Analyste : <strong style="color:var(--text);">{{ t.owner.username }}</strong></span>
+                <span>Type : <strong style="color:var(--text);">{{ t.file_type }}</strong></span>
+                <span>Date : <strong style="color:var(--text);">{{ t.created_at.strftime('%Y-%m-%d %H:%M UTC')
+                        }}</strong></span>
+                <span>SHA-256 : <code
+                        style="font-size:10px;color:var(--acc-green);">{{ t.sha256[:24] }}...</code></span>
+            </div>
+            {% if t.tags %}
+            <div style="margin-top:8px;">
+                {% for tag in t.tags %}<span class="pill"
+                    style="color:var(--acc-red);border-color:rgba(255,59,92,.3);margin-right:4px;">{{ tag }}</span>{%
+                endfor %}
+            </div>
+            {% endif %}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+            <a class="btn btn-ghost" style="padding:6px 14px;font-size:11px;"
+                href="{{ url_for('tickets.ticket_detail', ticket_id=t.id) }}">Voir le ticket</a>
+            <a class="btn btn-ghost" style="padding:6px 14px;font-size:11px;" href="{{ t.vt_url }}" target="_blank"
+                rel="noopener">VT →</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:60px;">
+    <div style="font-size:32px;margin-bottom:12px;">✓</div>
+    <h3 style="font-family:var(--serif);font-size:22px;color:var(--acc-green);">Aucune alerte</h3>
+    <p style="color:var(--text-dim);margin-top:6px;">Aucune analyse n'a atteint le seuil de {{ threshold }}.</p>
+</div>
+{% endif %}
+{% endblock %}

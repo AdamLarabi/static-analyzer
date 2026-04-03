@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block title %}Analyser — Static Analyzer{% endblock %}
+
+{% block content %}
+<style>
+    .upload-wrap {
+        display: flex;
+        justify-content: center;
+        padding-top: 40px;
+    }
+
+    .upload-panel {
+        width: 100%;
+        max-width: 520px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 44px 40px;
+        position: relative;
+    }
+
+    .upload-panel::before {
+        content: "";
+        position: absolute;
+        top: -1px;
+        left: 30px;
+        right: 30px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--acc-cyan), var(--acc-violet));
+        border-radius: 0 0 2px 2px;
+    }
+
+    .eyebrow {
+        font-size: 9px;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+        color: var(--acc-cyan);
+        margin-bottom: 12px;
+    }
+
+    .upload-title {
+        font-family: var(--serif);
+        font-size: 32px;
+        font-weight: 900;
+        color: var(--text-head);
+        line-height: 1.05;
+        letter-spacing: -.03em;
+        margin-bottom: 6px;
+    }
+
+    .upload-title span {
+        color: var(--acc-cyan);
+        font-style: normal;
+    }
+
+    .upload-sub {
+        font-size: 11px;
+        color: var(--text-dim);
+        margin-bottom: 28px;
+    }
+
+    .file-zone {
+        border: 1px dashed rgba(0, 212, 255, .25);
+        border-radius: 8px;
+        padding: 32px 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color .2s, background .2s;
+        margin-bottom: 14px;
+        position: relative;
+    }
+
+    .file-zone:hover,
+    .file-zone.drag-over {
+        border-color: var(--acc-cyan);
+        background: rgba(0, 212, 255, .04);
+    }
+
+    .file-zone input[type=file] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+    }
+
+    .file-zone-icon {
+        font-size: 28px;
+        margin-bottom: 10px;
+        color: var(--text-dim);
+    }
+
+    .file-zone-text {
+        font-size: 12px;
+        color: var(--text-dim);
+    }
+
+    .file-zone-text strong {
+        color: var(--acc-cyan);
+    }
+
+    .file-zone-hint {
+        font-size: 10px;
+        color: var(--text-dim);
+        margin-top: 6px;
+        letter-spacing: .04em;
+    }
+
+    .file-selected {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-radius: var(--r);
+        background: rgba(26, 219, 126, .06);
+        border: 1px solid rgba(26, 219, 126, .2);
+        font-size: 11px;
+        color: #6ee7b7;
+        margin-bottom: 14px;
+    }
+
+    .file-selected.show {
+        display: flex;
+    }
+
+    .btn-analyze {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(90deg, var(--acc-cyan), var(--acc-violet));
+        border: none;
+        border-radius: 7px;
+        color: #08090c;
+        font-family: var(--serif);
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity .2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-analyze:hover {
+        opacity: .85;
+    }
+
+    .btn-analyze:disabled {
+        opacity: .5;
+        cursor: not-allowed;
+    }
+
+    .spinner {
+        display: none;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(0, 0, 0, .3);
+        border-top-color: #08090c;
+        border-radius: 50%;
+        animation: spin .6s linear infinite;
+    }
+
+    .btn-analyze.loading .spinner {
+        display: block;
+    }
+
+    .btn-analyze.loading .btn-text {
+        display: none;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .features {
+        margin-top: 24px;
+        padding: 16px;
+        background: rgba(0, 0, 0, .3);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+    }
+
+    .features-title {
+        font-size: 9px;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 10px;
+    }
+
+    .feature-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 0;
+        font-size: 11px;
+        color: var(--text-dim);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .feature-item:last-child {
+        border-bottom: none;
+    }
+
+    .feature-item::before {
+        content: "";
+        display: block;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--acc-cyan);
+        flex-shrink: 0;
+    }
+
+    .max-size {
+        font-size: 10px;
+        color: var(--text-dim);
+        text-align: center;
+        margin-top: 8px;
+    }
+</style>
+
+<div class="upload-wrap">
+    <div class="upload-panel">
+        <div class="eyebrow">Analyse Statique</div>
+        <h1 class="upload-title"><em>Malware</em><br><span>Analyzer</span></h1>
+        <p class="upload-sub">Déposez un fichier pour une analyse complète</p>
+
+        <form action="{{ url_for('analysis.analyze') }}" method="POST" enctype="multipart/form-data" id="upload-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="file-zone" id="file-zone">
+                <input type="file" name="file" id="file-input" required
+                    accept=".exe,.dll,.sys,.bin,.dat,.pdf,.docx,.doc,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.bmp,.zip,.rar,.7z,.js,.vbs,.ps1,.bat,.cmd,.elf,.so">
+                <div class="file-zone-icon">⬆</div>
+                <div class="file-zone-text">
+                    Cliquez ou glissez un fichier ici<br>
+                    <strong>Tous types de fichiers supportés</strong>
+                </div>
+                <div class="file-zone-hint">PE · ELF · PDF · Office · Images · Archives · Scripts</div>
+            </div>
+
+            <div class="file-selected" id="file-selected">
+                <span>📄</span>
+                <span id="file-name-display"></span>
+                <span id="file-size-display" style="margin-left:auto;opacity:.6;"></span>
+            </div>
+
+            <button type="submit" class="btn-analyze" id="analyze-btn" disabled>
+                <span class="spinner"></span>
+                <span class="btn-text">Lancer l'analyse</span>
+            </button>
+        </form>
+
+        <div class="max-size">Taille max : 50 Mo</div>
+
+        <div class="features">
+            <div class="features-title">Modules d'analyse</div>
+            <div class="feature-item">Hashes cryptographiques — MD5 / SHA-1 / SHA-256</div>
+            <div class="feature-item">Entropie de Shannon — détection packing/chiffrement</div>
+            <div class="feature-item">Imports PE + sections — surface d'attaque API</div>
+            <div class="feature-item">Strings suspectes — 200+ signatures + regex dynamiques</div>
+            <div class="feature-item">Moteur YARA — détection par signatures</div>
+            <div class="feature-item">MITRE ATT&CK — cartographie des TTPs</div>
+            <div class="feature-item">VirusTotal — réputation multi-AV</div>
+            <div class="feature-item">Analyse spécialisée — PE / PDF / Images / Office</div>
+            <div class="feature-item">Score de menace — indice 0-100 automatique</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const input = document.getElementById('file-input');
+    const zone = document.getElementById('file-zone');
+    const selected = document.getElementById('file-selected');
+    const nameDisp = document.getElementById('file-name-display');
+    const sizeDisp = document.getElementById('file-size-display');
+    const btn = document.getElementById('analyze-btn');
+    const form = document.getElementById('upload-form');
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+    }
+
+    function handleFile(file) {
+        if (!file) return;
+        nameDisp.textContent = file.name;
+        sizeDisp.textContent = formatSize(file.size);
+        selected.classList.add('show');
+        btn.disabled = false;
+    }
+
+    input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
+
+    // Drag & drop
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+        e.preventDefault(); zone.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            handleFile(file);
+        }
+    });
+
+    // Loading state
+    form.addEventListener('submit', () => {
+        btn.classList.add('loading');
+        btn.disabled = true;
+    });
+</script>
+{% endblock %}

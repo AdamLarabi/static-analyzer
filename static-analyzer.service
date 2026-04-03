@@ -1,0 +1,52 @@
+[Unit]
+Description=Static Analyzer — Malware Analysis Platform
+After=network.target
+Documentation=https://github.com/yourorg/static-analyzer
+
+[Service]
+Type=notify
+
+# Utilisateur dédié (ne pas faire tourner en root)
+User=analyzer
+Group=analyzer
+
+# Répertoire de travail
+WorkingDirectory=/opt/static-analyzer
+
+# Variables d'environnement — REMPLACER les valeurs sensibles
+Environment="FLASK_ENV=production"
+Environment="SECRET_KEY=CHANGER_CETTE_CLE_EN_PROD"
+Environment="VT_API_KEY=VOTRE_CLE_VIRUSTOTAL"
+Environment="ADMIN_DEFAULT_PASSWORD=CHANGER_AU_PREMIER_DEMARRAGE"
+Environment="HTTPS=false"
+Environment="LOG_LEVEL=INFO"
+
+# Lancement via Gunicorn (pas le serveur de dev Flask)
+# 4 workers, timeout 120s (analyse peut prendre du temps)
+ExecStart=/opt/static-analyzer/venv/bin/gunicorn \
+    --bind 0.0.0.0:5000 \
+    --workers 4 \
+    --worker-class sync \
+    --timeout 120 \
+    --access-logfile /opt/static-analyzer/logs/access.log \
+    --error-logfile /opt/static-analyzer/logs/error.log \
+    --log-level info \
+    "run:app"
+
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# Sécurité systemd
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/static-analyzer/database /opt/static-analyzer/logs /opt/static-analyzer/uploads /opt/static-analyzer/app/static/uploads
+NoNewPrivileges=true
+ProtectHome=true
+
+# Redémarrage automatique
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=60s
+StartLimitBurst=3
+
+[Install]
+WantedBy=multi-user.target
