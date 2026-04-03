@@ -43,7 +43,11 @@ def generate(ticket_id):
         pdf_bytes = PDFGenerator.generate_report(report_data)
         if pdf_bytes:
             pdf_stream = BytesIO(pdf_bytes)
-            filename = f"report_DP-{ticket_id:05d}_{datetime.utcnow().strftime('%Y%m%d')}.pdf"
+            
+            # Formattage demandé : DATAPROTECT-[CLIENT]-[ID].pdf
+            safe_client = "".join(x for x in client_name if x.isalnum() or x in "-_").strip() or "ANONYME"
+            filename = f"DATAPROTECT-{safe_client.upper()}-{ticket_id:05d}.pdf"
+            
             return send_file(
                 pdf_stream,
                 mimetype='application/pdf',

@@ -166,6 +166,21 @@ def update_tags(ticket_id: int):
     return jsonify({"success": True, "tags": ticket.tags})
 
 
+@tickets_bp.route("/<int:ticket_id>/rename", methods=["POST"])
+@login_required
+def rename_ticket(ticket_id: int):
+    ticket = _get_ticket_or_403(ticket_id)
+    data   = request.get_json(silent=True) or {}
+    new_name = data.get("name", "").strip()[:100]
+
+    if not new_name:
+        return jsonify({"error": "Le nom ne peut pas être vide"}), 400
+
+    ticket.filename = new_name
+    db.session.commit()
+    return jsonify({"success": True, "new_name": ticket.filename})
+
+
 # ── Supprimer un ticket ───────────────────────────────────────────────────────
 
 @tickets_bp.route("/<int:ticket_id>/delete", methods=["POST"])

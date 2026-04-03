@@ -251,9 +251,9 @@
 {% block content %}
 
 {# ── TICKET HEADER ── #}
-<div class="ticket-header">
+<div class="ticket-header animate-fade">
     <div>
-        <div class="ticket-title">
+        <div class="ticket-title" id="ticket-title-display">
             {{ ticket.filename }}
             <small>#{{ ticket.id }}</small>
         </div>
@@ -261,21 +261,16 @@
             <span>Créé : <strong>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</strong></span>
             <span>Analyste : <strong>{{ ticket.owner.username }}</strong></span>
             <span>Type : <strong>{{ ticket.file_type }}</strong></span>
-            <span>SHA-256 : <strong>{{ ticket.sha256[:20] }}...</strong></span>
+            <span title="{{ ticket.sha256 }}">SHA-256 : <strong>{{ ticket.sha256[:16] }}...</strong></span>
         </div>
     </div>
     <div class="ticket-actions">
+        <button class="btn btn-ghost" onclick="openRenameModal()">✏ Renommer</button>
         {% if can_pdf %}
-        <button class="btn btn-violet" onclick="document.getElementById('pdf-modal').classList.add('open')">📄 Générer
-            PDF</button>
+        <button class="btn btn-primary" onclick="document.getElementById('pdf-modal').classList.add('open')">📄 PDF Rapport</button>
         {% endif %}
         <a class="btn btn-ghost" href="{{ ticket.vt_url }}" target="_blank" rel="noopener">🔗 VirusTotal</a>
-        <a class="btn btn-ghost" href="{{ url_for('tickets.list_tickets') }}">← Retour</a>
-        <form action="{{ url_for('tickets.delete_ticket', ticket_id=ticket.id) }}" method="POST"
-            onsubmit="return confirm('Supprimer ce ticket définitivement ?')">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-danger" type="submit">🗑 Supprimer</button>
-        </form>
+        <button class="btn btn-violet" onclick="document.getElementById('delete-modal').classList.add('open')">🗑 Supprimer</button>
     </div>
 </div>
 
@@ -468,10 +463,71 @@
     </div>
 </div>
 {% endif %}
+{# ── MODAL RENAME ── #}
+<div class="modal-overlay" id="rename-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeRenameModal()">×</button>
+        <h3>✏ Renommer le ticket</h3>
+        <p style="font-size:11px;color:var(--text-dim);margin-bottom:20px;">Modifiez le nom du fichier ou donnez un titre plus explicite.</p>
+        <div class="form-group">
+            <label class="form-label">Titre du ticket</label>
+            <input class="form-input" id="new-ticket-name-input" value="{{ ticket.filename }}">
+        </div>
+        <button class="btn btn-primary" style="width:100%;" onclick="confirmRename()">
+            Sauvegarder les modifications
+        </button>
+    </div>
+</div>
+
+{# ── MODAL DELETE ── #}
+<div class="modal-overlay" id="delete-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeDeleteModal()">×</button>
+        <h3>🗑 Supprimer ce ticket ?</h3>
+        <p style="margin: 20px 0; color: var(--text-dim); font-size: 13px;">Cette action supprimera définitivement le ticket <strong>#{{ ticket.id }}</strong> ainsi que toutes ses notes et son historique d'analyse. Cette opération est irréversible.</p>
+        <form action="{{ url_for('tickets.delete_ticket', ticket_id=ticket.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-violet" style="width:100%;">Confirmer la suppression</button>
+        </form>
+    </div>
+</div>
 
 <script>
     const ticketId = {{ ticket.id }};
     let currentTags = {{ ticket.tags | tojson }};
+
+    function openRenameModal() { document.getElementById('rename-modal').classList.add('open'); }
+    function closeRenameModal() { document.getElementById('rename-modal').classList.remove('open'); }
+    function openDeleteModal() { document.getElementById('delete-modal').classList.add('open'); }
+    function closeDeleteModal() { document.getElementById('delete-modal').classList.remove('open'); }
+
+    async function confirmRename() {
+        const nameInput = document.getElementById('new-ticket-name-input');
+        const name = nameInput.value.trim();
+        if(!name) return alert("Le nom ne peut pas être vide");
+        
+        try {
+            const resp = await fetch(`/tickets/${ticketId}/rename`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrf()
+                },
+                body: JSON.stringify({ name })
+            });
+            const json = await resp.json();
+            if (json.success) {
+                const titleEl = document.getElementById('ticket-title-display');
+                if(titleEl) titleEl.innerHTML = `${json.new_name} <small>#${ticketId}</small>`;
+                closeRenameModal();
+            } else {
+                alert(json.error || "Erreur lors du renommage");
+            }
+        } catch(e) {
+            console.error(e);
+            alert("Erreur de connexion au serveur");
+        }
+    }
 
     async function saveTags() {
         await fetch(`/tickets/${ticketId}/tags`, {
