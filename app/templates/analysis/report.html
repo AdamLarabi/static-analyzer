@@ -438,9 +438,13 @@
         <div class="header-actions">
             {% if can_save %}
             <button class="btn btn-primary" onclick="openSaveModal()">💾 Sauvegarder le ticket</button>
+            {% if can_pdf %}
+            <button class="btn btn-violet" onclick="openSaveAndPdfModal()">📄 Sauvegarder & PDF</button>
+            {% endif %}
             {% endif %}
             <a class="btn btn-ghost" href="{{ url_for('analysis.upload') }}">← Nouvelle analyse</a>
         </div>
+        <input type="hidden" name="csrf_token" id="csrf_token" value="{{ csrf_token() }}">
     </div>
     <div class="score-badge" style="color:{{ data.threat_score.color }};border-color:{{ data.threat_score.color }};">
         <div class="score-num" style="color:{{ data.threat_score.color }};">{{ data.threat_score.score }}</div>
@@ -769,7 +773,7 @@
 <div class="modal-overlay" id="save-modal">
     <div class="modal">
         <button class="modal-close" onclick="closeSaveModal()">×</button>
-        <h3>💾 Sauvegarder le ticket</h3>
+        <h3 id="modal-title">💾 Sauvegarder le ticket</h3>
         <div class="form-group">
             <label class="form-label">Commentaire initial</label>
             <textarea class="form-input" id="ticket-comment" placeholder="Contexte, observations, origine du fichier..."
@@ -779,42 +783,110 @@
             <label class="form-label">Tags (séparés par virgule)</label>
             <input class="form-input" id="ticket-tags" placeholder="ransomware, apt, trojan...">
         </div>
-        <button class="btn btn-primary" style="width:100%;" onclick="saveTicket()">
+        <button class="btn btn-primary" style="width:100%;" id="confirm-save-btn" onclick="saveTicket()">
             Confirmer la sauvegarde
         </button>
         <div id="save-feedback" style="margin-top:10px;display:none;"></div>
     </div>
 </div>
+
+{# ── MODAL PDF (POST-SAVE) ── #}
+{% if can_pdf %}
+<div class="modal-overlay" id="pdf-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="closePdfModal()">×</button>
+        <h3>📄 Générer le rapport PDF</h3>
+        <p style="font-size:11px;color:var(--text-dim);margin-bottom:16px;">Le ticket a été sauvegardé. Vous pouvez
+            maintenant générer le PDF personnalisé.</p>
+        <form id="pdf-form" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label class="form-label">Nom du client</label>
+                <input class="form-input" name="client_name" placeholder="Entreprise ou particulier...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Logo (PNG, JPG, SVG — max 2 Mo)</label>
+                <input class="form-input" type="file" name="logo" accept=".png,.jpg,.jpeg,.svg,.gif">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">
+                Télécharger le PDF
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
 {% endif %}
 
 <script>
     // ── Save ticket ───────────────────────────────────────────────────
     const reportData = {{ data | tojson }};
+    let pendingPdf = false;
 
-    function openSaveModal() { document.getElementById('save-modal').classList.add('open'); }
+    function openSaveModal() { 
+        pendingPdf = false;
+        document.getElementById('modal-title').textContent = '💾 Sauvegarder le ticket';
+        document.getElementById('save-modal').classList.add('open'); 
+    }
+    
+    function openSaveAndPdfModal() {
+        pendingPdf = true;
+        document.getElementById('modal-title').textContent = '📄 Sauvegarder & Générer PDF';
+        document.getElementById('save-modal').classList.add('open');
+    }
+
     function closeSaveModal() { document.getElementById('save-modal').classList.remove('open'); }
+    function closePdfModal() { document.getElementById('pdf-modal').classList.remove('open'); }
 
     async function saveTicket() {
         const comment = document.getElementById('ticket-comment').value;
         const tagsRaw = document.getElementById('ticket-tags').value;
         const tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
-
-        const resp = await fetch('/tickets/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-            body: JSON.stringify({ result: reportData, comment, tags }),
-        });
-        const json = await resp.json();
+        const btn = document.getElementById('confirm-save-btn');
         const fb = document.getElementById('save-feedback');
-        fb.style.display = 'block';
 
-        if (json.success) {
-            fb.innerHTML = '<div class="alert-strip ok">✔ Ticket sauvegardé ! Redirection...</div>';
-            setTimeout(() => window.location.href = json.redirect, 1200);
-        } else if (json.warning) {
-            fb.innerHTML = `<div class="alert-strip warn">${json.warning}</div>`;
-        } else {
-            fb.innerHTML = `<div class="alert-strip danger">Erreur : ${json.error || 'inconnue'}</div>`;
+        btn.disabled = true;
+        btn.textContent = '⏳ Sauvegarde en cours...';
+
+        try {
+            const resp = await fetch('/tickets/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+                body: JSON.stringify({ result: reportData, comment, tags }),
+            });
+            const json = await resp.json();
+            fb.style.display = 'block';
+
+            if (json.success || json.warning) {
+                const ticketId = json.ticket_id;
+                
+                if (json.warning) {
+                    fb.innerHTML = `<div class="alert-strip warn">${json.warning}</div>`;
+                } else {
+                    fb.innerHTML = '<div class="alert-strip ok">✔ Ticket sauvegardé !</div>';
+                }
+
+                if (pendingPdf && ticketId) {
+                    // Si on a demandé un PDF, on ouvre la modal PDF
+                    setTimeout(() => {
+                        closeSaveModal();
+                        const pdfForm = document.getElementById('pdf-form');
+                        pdfForm.action = `/pdf/generate/${ticketId}`;
+                        document.getElementById('pdf-modal').classList.add('open');
+                    }, 800);
+                } else {
+                    // Sinon redirection classique
+                    setTimeout(() => window.location.href = json.redirect, 1200);
+                }
+            } else {
+                fb.innerHTML = `<div class="alert-strip danger">Erreur : ${json.error || 'inconnue'}</div>`;
+                btn.disabled = false;
+                btn.textContent = 'Confirmer la sauvegarde';
+            }
+        } catch (e) {
+            fb.style.display = 'block';
+            fb.innerHTML = `<div class="alert-strip danger">Erreur réseau ou serveur</div>`;
+            btn.disabled = false;
+            btn.textContent = 'Confirmer la sauvegarde';
         }
     }
 
