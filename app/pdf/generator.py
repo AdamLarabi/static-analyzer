@@ -11,16 +11,12 @@ class PDFGenerator:
         :param report_data: Dictionary containing analysis results
         :param output_path: Optional path to save the PDF. If None, returns bytes.
         """
-        try:
-            # Render HTML template
-            html_content = render_template('pdf/report_pdf.html', **report_data)
-            
-            # Generate PDF
-            if output_path:
-                HTML(string=html_content, base_url=current_app.root_path).write_pdf(output_path)
-                return output_path
-            else:
-                return HTML(string=html_content, base_url=current_app.root_path).write_pdf()
-        except Exception as e:
-            current_app.logger.error(f"Error generating PDF: {str(e)}")
-            return None
+        # Render HTML template
+        html_content = render_template('pdf/report_pdf.html', **report_data)
+        
+        # Generate PDF
+        if output_path:
+            HTML(string=html_content, base_url=current_app.root_path).write_pdf(output_path)
+            return output_path
+        else:
+            return HTML(string=html_content, base_url=current_app.root_path).write_pdf()
