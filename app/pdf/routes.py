@@ -6,7 +6,7 @@ from io import BytesIO
 
 pdf_bp = Blueprint('pdf', __name__, template_folder='templates', url_prefix='/pdf')
 
-@pdf_bp.route('/generate/<int:ticket_id>', methods=['POST'])
+@pdf_bp.route('/generate/<int:ticket_id>', methods=['GET', 'POST'])
 @login_required
 def generate(ticket_id):
     from flask import request
@@ -17,6 +17,9 @@ def generate(ticket_id):
     
     if not current_user.has_permission('generate_pdf'):
         abort(403)
+        
+    if not ticket.result:
+        abort(404, description="Ticket has no analysis data.")
         
     client_name = request.form.get('client_name', '').strip()
     
@@ -50,5 +53,7 @@ def generate(ticket_id):
         else:
             abort(500, description="PDF generation failed.")
     except Exception as e:
-        current_app.logger.error(f"PDF generation error: {str(e)}")
-        abort(500)
+        current_app.logger.error(f"PDF generation error for ticket {ticket_id}: {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return f"<h1>Erreur 500</h1><p>Détails : {str(e)}</p>", 500

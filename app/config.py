@@ -36,15 +36,18 @@ class Config:
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 Mo max par fichier
     UPLOAD_FOLDER      = os.path.join(BASE_DIR, "uploads")
 
-    # Extensions autorisées à l'upload
     ALLOWED_EXTENSIONS = {
-        "exe", "dll", "sys", "bin", "dat",   # PE / binaires
+        "exe", "dll", "sys", "bin", "dat",   # PE / binaires Windows
+        "msi", "jar", "lnk",                  # Installateurs et raccourcis
         "pdf",                                 # Documents PDF
         "docx", "doc", "xls", "xlsx",         # Office
         "png", "jpg", "jpeg", "gif", "bmp",   # Images
-        "zip", "rar", "7z",                    # Archives
-        "js", "vbs", "ps1", "bat", "cmd",     # Scripts
-        "elf", "so",                           # Linux
+        "zip", "rar", "7z", "iso", "img",     # Archives et images disque
+        "js", "vbs", "ps1", "bat", "cmd",     # Scripts Windows
+        "py", "php", "sh",                     # Scripts Web/Linux
+        "elf", "so",                           # Binaires Linux
+        "apk",                                 # Android
+        "vhd", "vhdx",                         # Disques virtuels
     }
 
     # ── VirusTotal ────────────────────────────────────────────────────────────

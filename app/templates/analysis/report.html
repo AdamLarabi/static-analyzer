@@ -453,6 +453,22 @@
     </div>
 </div>
 
+{# ── SECURITY ALERTS ── #}
+{% if data.security_alerts %}
+<div class="card" style="border: 2px solid var(--acc-red); margin-bottom: 24px; background: rgba(255, 59, 92, 0.03);">
+    <div class="section-head">
+        <div class="section-head-line" style="background:var(--acc-red);"></div>
+        <h2 style="color:var(--acc-red);">ALERTES DE SÉCURITÉ</h2>
+    </div>
+    {% for alert in data.security_alerts %}
+    <div class="alert-strip danger" style="padding:15px; font-weight:700; margin-bottom:8px; display:flex; align-items:center; gap:10px;">
+        <span style="font-size:24px;">⚠</span>
+        <span>{{ alert }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 {# ── ROW 1 : File info + Hashes ── #}
 <div class="grid-2">
     <div class="card">

@@ -81,6 +81,9 @@ def detect_file_type(file_path: str, filename: str) -> str:
             b"BM":            "BMP",
             b"Rar!":          "RAR",
             b"7z\xbc\xaf":    "7ZIP",
+            b"\xd0\xcf\x11\xe0": "MSI_OLE",   # MSI, DOC (vieux), XLS (vieux)
+            b"L\x00\x00\x00": "LNK",          # Raccourci Windows
+            b"#!":            "SCRIPT_SHEBANG",
         }
 
         for magic, ftype in magic_map.items():
@@ -384,8 +387,21 @@ def run_full_analysis(file_path: str, filename: str) -> dict:
     # Suspicious strings (nouveau moteur)
     susp_result = analyze_strings(strings)
 
+    # Détection de disparité extension/contenu (Alerte de sécurité)
+    extension = os.path.splitext(filename)[1].lower().lstrip(".")
+    type_mismatch = False
+    if file_type == "PE" and extension not in ("exe", "dll", "sys", "bin", "dat"):
+        type_mismatch = True
+    elif file_type == "PDF" and extension != "pdf":
+        type_mismatch = True
+    elif file_type in ("JPEG", "PNG", "GIF", "BMP") and extension not in ("jpg", "jpeg", "png", "gif", "bmp"):
+        type_mismatch = True
+
     # Analyse spécialisée selon le type
     type_specific = {}
+    if type_mismatch:
+        type_specific["security_alerts"] = type_specific.get("security_alerts", [])
+        type_specific["security_alerts"].append(f"ALERTE : Le contenu du fichier ({file_type}) ne correspond pas à son extension (.{extension}).")
     if file_type == "PE":
         pe_data = analyze_pe(file_path)
         type_specific = {
@@ -399,6 +415,19 @@ def run_full_analysis(file_path: str, filename: str) -> dict:
         type_specific = {"image_analysis": analyze_image(file_path)}
     elif file_type in ("DOCX", "XLSX", "ZIP_BASED"):
         type_specific = {"office_analysis": analyze_office(file_path, file_type)}
+    elif extension in ("py", "php", "sh", "js", "vbs", "ps1", "bat", "cmd") or file_type == "SCRIPT_SHEBANG":
+        # Analyse générique de scripts
+        suspicious_script = [s for s in strings if any(kw in s.lower() for kw in ("base64", "eval", "shell", "exec", "socket", "connect", "download"))]
+        type_specific = {
+            "script_analysis": {
+                "is_script": True,
+                "suspicious_patterns_count": len(suspicious_script),
+                "preview": strings[:15]
+            }
+        }
+        if suspicious_script:
+            type_specific["security_alerts"] = type_specific.get("security_alerts", [])
+            type_specific["security_alerts"].append(f"Script suspect : {len(suspicious_script)} patterns de commande/réseau détectés.")
 
     # YARA + MITRE
     yara_hits  = run_yara_scan(file_path)
