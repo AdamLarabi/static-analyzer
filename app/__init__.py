@@ -48,6 +48,7 @@ def create_app(env: str = None) -> Flask:
     with app.app_context():
         from app.models import user, ticket, audit, yara_rule  # noqa: F401 — enregistre les modèles
         db.create_all()
+        _migrate_schema(app)
         _create_default_admin(app)
 
     # ── Logging ──────────────────────────────────────────────────────────────
@@ -86,6 +87,29 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(tickets_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(pdf_bp)
+
+
+def _migrate_schema(app: Flask) -> None:
+    """Applies incremental schema changes that db.create_all() cannot handle."""
+    from sqlalchemy import text, inspect
+
+    inspector = inspect(db.engine)
+    columns = {col["name"] for col in inspector.get_columns("users")}
+
+    additions = []
+    if "totp_secret" not in columns:
+        additions.append("ALTER TABLE users ADD COLUMN totp_secret VARCHAR(32)")
+    if "totp_enabled" not in columns:
+        additions.append("ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN DEFAULT 0")
+    if "totp_backup_codes" not in columns:
+        additions.append("ALTER TABLE users ADD COLUMN totp_backup_codes TEXT")
+
+    if additions:
+        with db.engine.connect() as conn:
+            for stmt in additions:
+                conn.execute(text(stmt))
+            conn.commit()
+        app.logger.info("Schema migration applied: added TOTP columns to users table.")
 
 
 def _create_default_admin(app: Flask) -> None:
