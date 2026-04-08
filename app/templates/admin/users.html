@@ -109,6 +109,14 @@
         border-color: var(--acc-cyan);
     }
 
+    .btn-danger {
+        background: rgba(255,59,92,.08);
+        color: var(--acc-red);
+        border: 1px solid rgba(255,59,92,.25);
+        font-family: inherit;
+    }
+    .btn-danger:hover { background: rgba(255,59,92,.18); border-color: var(--acc-red); }
+
     /* Create user modal */
     .create-form .form-group {
         margin-bottom: 14px;
@@ -189,12 +197,8 @@
                         <button class="btn btn-ghost" style="padding:3px 10px;font-size:10px;"
                             onclick="openResetModal({{ u.id }}, '{{ u.username }}')">Reset MDP</button>
                         {% if u.id != current_user.id %}
-                        <form action="{{ url_for('admin.delete_user', user_id=u.id) }}" method="POST"
-                            onsubmit="return confirm('Supprimer {{ u.username }} et tous ses tickets ?')">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button class="btn btn-danger" style="padding:3px 10px;font-size:10px;"
-                                type="submit">Supprimer</button>
-                        </form>
+                        <button class="btn btn-danger" style="padding:3px 10px;font-size:10px;"
+                            onclick="openDeleteModal({{ u.id }}, '{{ u.username }}')">Supprimer</button>
                         {% endif %}
                     </div>
                 </td>
@@ -214,12 +218,12 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label class="form-label">Nom d'utilisateur</label>
-                <input class="form-input" name="username" required placeholder="john_doe" pattern="[\w.\-]+"
+                <input class="form-input" name="username" required placeholder="alarabi" pattern="[\w.\-]+"
                     minlength="3" maxlength="64">
             </div>
             <div class="form-group">
                 <label class="form-label">Email</label>
-                <input class="form-input" name="email" type="email" required placeholder="john@example.com">
+                <input class="form-input" name="email" type="email" required placeholder="alarabi@dataprotect.ma">
             </div>
             <div class="form-group">
                 <label class="form-label">Mot de passe (min. 8 caractères)</label>
@@ -233,6 +237,26 @@
                 </select>
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%;">Créer l'utilisateur</button>
+        </form>
+    </div>
+</div>
+
+{# ── MODAL SUPPRIMER ── #}
+<div class="modal-overlay" id="delete-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="document.getElementById('delete-modal').classList.remove('open')">×</button>
+        <h3 style="color:var(--acc-red);margin-bottom:12px;">Supprimer l'utilisateur</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">
+            Vous allez supprimer <strong id="delete-username" style="color:var(--text-head);"></strong> ainsi que tous ses tickets.
+        </p>
+        <p style="font-size:11px;color:var(--acc-red);margin-bottom:24px;">Cette action est irréversible.</p>
+        <form id="delete-form" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="display:flex;gap:10px;">
+                <button type="button" class="btn btn-ghost" style="flex:1;"
+                    onclick="document.getElementById('delete-modal').classList.remove('open')">Annuler</button>
+                <button type="submit" class="btn btn-danger" style="flex:1;">Confirmer la suppression</button>
+            </div>
         </form>
     </div>
 </div>
@@ -290,6 +314,12 @@
             btn.textContent = json.active ? '● Actif' : '● Inactif';
             btn.className = `toggle-btn ${json.active ? 'active' : 'inactive'}`;
         }
+    }
+
+    function openDeleteModal(userId, username) {
+        document.getElementById('delete-username').textContent = username;
+        document.getElementById('delete-form').action = `/admin/users/${userId}/delete`;
+        document.getElementById('delete-modal').classList.add('open');
     }
 
     function openResetModal(userId, username) {

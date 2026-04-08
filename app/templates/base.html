@@ -352,7 +352,7 @@
     <nav class="navbar">
         <a class="nav-brand" href="{{ url_for('analysis.upload') }}">
             <div class="logo-dot"></div>
-            Data<span>Protect</span>
+            DATAPROTECT
         </a>
         <div class="nav-links">
             <a class="nav-link {% if request.endpoint == 'analysis.upload' %}active{% endif %}"
@@ -374,6 +374,9 @@
             <span class="badge {% if current_user.is_admin %}badge-admin{% else %}badge-analyst{% endif %}">
                 {{ current_user.role.value }}
             </span>
+            <a class="nav-link {% if request.endpoint == 'auth.profile' %}active{% endif %}"
+               href="{{ url_for('auth.profile') }}"
+               style="font-size:10px;padding:6px 12px;">Profil</a>
             <a class="nav-link {% if request.endpoint and 'totp' in request.endpoint %}active{% endif %}"
                href="{{ url_for('auth.totp_manage') }}"
                title="Gestion 2FA"

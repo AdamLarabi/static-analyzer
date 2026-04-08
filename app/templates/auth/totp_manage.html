@@ -98,14 +98,11 @@
         <!-- Désactiver -->
         <div class="disable-section">
             <div class="disable-title">Désactiver le 2FA</div>
-            <form method="POST" action="{{ url_for('auth.totp_disable') }}"
-                  onsubmit="return confirm('Désactiver le 2FA rendra votre compte moins sécurisé. Continuer ?')">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label class="form-label" for="dis-pwd">Confirmez votre mot de passe</label>
-                <input type="password" name="password" id="dis-pwd" class="form-input"
-                    placeholder="••••••••" required autocomplete="current-password">
-                <button type="submit" class="btn-disable">Désactiver le 2FA</button>
-            </form>
+            <label class="form-label" for="dis-pwd">Confirmez votre mot de passe</label>
+            <input type="password" id="dis-pwd" class="form-input"
+                placeholder="••••••••" autocomplete="current-password">
+            <button type="button" class="btn-disable"
+                onclick="openDisableModal()">Désactiver le 2FA</button>
         </div>
 
         {% else %}
@@ -128,4 +125,36 @@
         {% endif %}
     </div>
 </div>
+
+{# ── MODAL DÉSACTIVER 2FA ── #}
+<div class="modal-overlay" id="disable-2fa-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="document.getElementById('disable-2fa-modal').classList.remove('open')">×</button>
+        <h3 style="color:var(--acc-red);margin-bottom:12px;">Désactiver le 2FA</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:20px;">
+            Votre compte sera moins sécurisé. Cette action nécessite la confirmation de votre mot de passe.
+        </p>
+        <form method="POST" action="{{ url_for('auth.totp_disable') }}" id="disable-2fa-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="password" id="modal-pwd-hidden">
+            <div style="display:flex;gap:10px;">
+                <button type="button" class="btn btn-ghost" style="flex:1;padding:12px;"
+                    onclick="document.getElementById('disable-2fa-modal').classList.remove('open')">Annuler</button>
+                <button type="submit" class="btn-disable" style="flex:1;">Confirmer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openDisableModal() {
+    const pwd = document.getElementById('dis-pwd').value;
+    if (!pwd) { document.getElementById('dis-pwd').focus(); return; }
+    document.getElementById('modal-pwd-hidden').value = pwd;
+    document.getElementById('disable-2fa-modal').classList.add('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(mo => {
+    mo.addEventListener('click', e => { if (e.target === mo) mo.classList.remove('open'); });
+});
+</script>
 {% endblock %}

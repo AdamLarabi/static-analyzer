@@ -164,6 +164,50 @@ def totp_qrcode():
     return send_file(buf, mimetype="image/svg+xml")
 
 
+@auth_bp.route("/profile", methods=["GET", "POST"])
+@login_required
+def profile():
+    """Page de profil : l'utilisateur peut changer son email et son mot de passe."""
+    errors = []
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "change_email":
+            new_email = request.form.get("email", "").strip()
+            if not new_email or "@" not in new_email:
+                errors.append("Adresse email invalide.")
+            elif User.query.filter(User.email == new_email, User.id != current_user.id).first():
+                errors.append("Cette adresse email est déjà utilisée.")
+            else:
+                current_user.email = new_email
+                db.session.commit()
+                flash("Email mis à jour.", "success")
+                return redirect(url_for("auth.profile"))
+
+        elif action == "change_password":
+            current_pwd  = request.form.get("current_password", "")
+            new_pwd      = request.form.get("new_password", "")
+            confirm_pwd  = request.form.get("confirm_password", "")
+
+            if not current_user.check_password(current_pwd):
+                errors.append("Mot de passe actuel incorrect.")
+            elif len(new_pwd) < 8:
+                errors.append("Le nouveau mot de passe doit contenir au moins 8 caractères.")
+            elif new_pwd != confirm_pwd:
+                errors.append("Les mots de passe ne correspondent pas.")
+            else:
+                current_user.set_password(new_pwd)
+                db.session.commit()
+                flash("Mot de passe mis à jour.", "success")
+                return redirect(url_for("auth.profile"))
+
+        for e in errors:
+            flash(e, "danger")
+
+    return render_template("auth/profile.html")
+
+
 @auth_bp.route("/2fa/manage")
 @login_required
 def totp_manage():

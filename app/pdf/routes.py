@@ -3,6 +3,8 @@ from flask_login import login_required, current_user
 from app.models.ticket import Ticket
 from app.pdf.generator import PDFGenerator
 from io import BytesIO
+import base64
+from PIL import Image
 
 pdf_bp = Blueprint('pdf', __name__, template_folder='templates', url_prefix='/pdf')
 
@@ -10,7 +12,6 @@ pdf_bp = Blueprint('pdf', __name__, template_folder='templates', url_prefix='/pd
 @login_required
 def generate(ticket_id):
     from flask import request
-    import base64
     from datetime import datetime
 
     ticket = Ticket.query.get_or_404(ticket_id)
@@ -27,9 +28,18 @@ def generate(ticket_id):
     if 'logo' in request.files:
         logo_file = request.files['logo']
         if logo_file.filename:
-            mime = logo_file.content_type
-            encoded = base64.b64encode(logo_file.read()).decode('utf-8')
-            logo_data_uri = f"data:{mime};base64,{encoded}"
+            try:
+                img = Image.open(logo_file).convert("RGBA")
+                # Flatten transparency onto white background for PDF compatibility
+                background = Image.new("RGB", img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[3])
+                buf = BytesIO()
+                background.save(buf, format="PNG")
+                buf.seek(0)
+                encoded = base64.b64encode(buf.read()).decode('utf-8')
+                logo_data_uri = f"data:image/png;base64,{encoded}"
+            except Exception as e:
+                current_app.logger.warning(f"Logo processing failed: {e}. Skipping logo.")
             
     report_data = {
         'ticket': ticket,

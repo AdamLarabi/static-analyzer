@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Mon profil — DATAPROTECT{% endblock %}
+
+{% block content %}
+<style>
+    .profile-wrap { display: flex; justify-content: center; padding-top: 40px; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+
+    .profile-panel {
+        width: 100%; max-width: 480px;
+        background: var(--bg-card); border: 1px solid var(--glass-border);
+        border-radius: 20px; padding: 40px; position: relative;
+        backdrop-filter: blur(10px);
+    }
+    .profile-panel::before {
+        content: ""; position: absolute; top: -1px; left: 30px; right: 30px; height: 2px;
+        background: linear-gradient(90deg, var(--acc-cyan), var(--acc-violet)); border-radius: 0 0 2px 2px;
+    }
+    .eyebrow { font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--acc-cyan); margin-bottom: 10px; }
+    .panel-title { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 900; color: var(--text-main); margin-bottom: 24px; }
+
+    .info-row {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+    }
+    .info-row:last-of-type { border-bottom: none; }
+    .info-key { color: var(--text-dim); text-transform: uppercase; font-size: 10px; letter-spacing: .08em; }
+    .info-val { color: var(--text-main); font-weight: 500; }
+
+    .section-divider {
+        font-size: 9px; text-transform: uppercase; letter-spacing: .14em;
+        color: var(--text-dim); margin: 28px 0 16px;
+        display: flex; align-items: center; gap: 10px;
+    }
+    .section-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+</style>
+
+<div class="profile-wrap">
+
+    {# ── Info panel ── #}
+    <div class="profile-panel animate-fade">
+        <div class="eyebrow">Compte</div>
+        <h1 class="panel-title">Mon profil</h1>
+
+        <div class="info-row">
+            <span class="info-key">Nom d'utilisateur</span>
+            <span class="info-val">{{ current_user.username }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-key">Rôle</span>
+            <span class="info-val">{{ current_user.role.value }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-key">Email</span>
+            <span class="info-val">{{ current_user.email }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-key">Dernière connexion</span>
+            <span class="info-val">{{ current_user.last_login.strftime('%Y-%m-%d %H:%M UTC') if current_user.last_login else 'Jamais' }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-key">2FA</span>
+            <span class="info-val" style="color:{% if current_user.totp_enabled %}#22c55e{% else %}var(--acc-red){% endif %};">
+                {% if current_user.totp_enabled %}Activé{% else %}Désactivé{% endif %}
+            </span>
+        </div>
+
+        <div class="section-divider">Modifier l'email</div>
+        <form method="POST" action="{{ url_for('auth.profile') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="change_email">
+            <div class="form-group">
+                <label class="form-label">Nouvel email</label>
+                <input class="form-input" type="email" name="email" required
+                    value="{{ current_user.email }}" placeholder="you@dataprotect.ma">
+            </div>
+            <button type="submit" class="btn btn-ghost" style="width:100%;">Mettre à jour l'email</button>
+        </form>
+
+        <div class="section-divider">Changer le mot de passe</div>
+        <button class="btn btn-primary" style="width:100%;"
+            onclick="document.getElementById('pwd-modal').classList.add('open')">
+            Changer le mot de passe
+        </button>
+    </div>
+</div>
+
+{# ── MODAL CHANGEMENT MDP ── #}
+<div class="modal-overlay" id="pwd-modal">
+    <div class="modal">
+        <button class="modal-close" onclick="document.getElementById('pwd-modal').classList.remove('open')">×</button>
+        <h3 style="margin-bottom:20px;">Changer le mot de passe</h3>
+        <form method="POST" action="{{ url_for('auth.profile') }}" onsubmit="return validatePwd()">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="change_password">
+            <div class="form-group">
+                <label class="form-label">Mot de passe actuel</label>
+                <input class="form-input" type="password" name="current_password" id="cur-pwd" required placeholder="••••••••" autocomplete="current-password">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Nouveau mot de passe</label>
+                <input class="form-input" type="password" name="new_password" id="new-pwd" required minlength="8" placeholder="Min. 8 caractères" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Confirmer le nouveau mot de passe</label>
+                <input class="form-input" type="password" name="confirm_password" id="conf-pwd" required placeholder="••••••••" autocomplete="new-password">
+                <p id="pwd-mismatch" style="font-size:10px;color:var(--acc-red);margin-top:6px;display:none;">Les mots de passe ne correspondent pas.</p>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Confirmer</button>
+        </form>
+    </div>
+</div>
+
+<script>
+function validatePwd() {
+    const n = document.getElementById('new-pwd').value;
+    const c = document.getElementById('conf-pwd').value;
+    if (n !== c) {
+        document.getElementById('pwd-mismatch').style.display = 'block';
+        return false;
+    }
+    return true;
+}
+document.querySelectorAll('.modal-overlay').forEach(mo => {
+    mo.addEventListener('click', e => { if (e.target === mo) mo.classList.remove('open'); });
+});
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for cat, msg in messages %}
+{% if cat == 'danger' %}
+document.getElementById('pwd-modal').classList.add('open');
+{% endif %}
+{% endfor %}
+{% endwith %}
+</script>
+{% endblock %}
