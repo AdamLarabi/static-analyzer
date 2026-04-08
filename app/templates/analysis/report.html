@@ -356,6 +356,35 @@
         margin-right: 4px;
     }
 
+    .scroll-list {
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .item {
+        font-size: 11px;
+        color: var(--text);
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 6px 10px;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        word-break: break-all;
+    }
+
+    .item-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--acc-cyan);
+        flex-shrink: 0;
+        margin-top: 3px;
+    }
+
     .string-item {
         font-size: 11px;
         color: var(--text-head);
