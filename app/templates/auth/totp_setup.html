@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Activer le 2FA — Static Analyzer{% endblock %}
+
+{% block content %}
+<style>
+    .twofa-wrap { display: flex; justify-content: center; padding-top: 40px; }
+    .twofa-panel {
+        width: 100%; max-width: 520px;
+        background: var(--bg-card); border: 1px solid var(--glass-border);
+        border-radius: 20px; padding: 44px 40px; position: relative;
+        backdrop-filter: blur(10px);
+    }
+    .twofa-panel::before {
+        content: ""; position: absolute; top: -1px; left: 30px; right: 30px; height: 2px;
+        background: linear-gradient(90deg, var(--acc-cyan), var(--acc-violet)); border-radius: 0 0 2px 2px;
+    }
+    .eyebrow { font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--acc-cyan); margin-bottom: 12px; }
+    .panel-title { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 900; color: var(--text-main); line-height: 1.05; letter-spacing: -.03em; margin-bottom: 6px; }
+    .panel-title span { color: var(--acc-cyan); }
+    .panel-sub { font-size: 11px; color: var(--text-dim); margin-bottom: 28px; line-height: 1.7; }
+
+    .steps { counter-reset: step; display: flex; flex-direction: column; gap: 24px; margin-bottom: 28px; }
+    .step { display: flex; gap: 16px; align-items: flex-start; }
+    .step-num {
+        counter-increment: step;
+        width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+        background: linear-gradient(135deg, var(--acc-violet), var(--acc-cyan));
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; font-weight: 700; color: #000;
+    }
+    .step-num::before { content: counter(step); }
+    .step-body { flex: 1; }
+    .step-title { font-size: 12px; font-weight: 600; color: var(--text-main); margin-bottom: 4px; }
+    .step-desc { font-size: 11px; color: var(--text-dim); line-height: 1.6; }
+
+    /* QR code */
+    .qr-wrap {
+        display: flex; justify-content: center; padding: 16px;
+        background: white; border-radius: 12px; margin: 12px 0;
+    }
+    .qr-wrap img, .qr-wrap svg { width: 180px; height: 180px; }
+
+    /* OTP input */
+    .otp-group { margin-top: 12px; }
+    .otp-input {
+        width: 100%; text-align: center; letter-spacing: .3em;
+        font-size: 26px; font-weight: 700; font-family: 'Geist Mono', monospace;
+        padding: 14px 10px; background: rgba(0,0,0,.3);
+        border: 1px solid var(--border); border-radius: 10px;
+        color: var(--text-main); transition: border-color .2s, box-shadow .2s;
+    }
+    .otp-input:focus { outline: none; border-color: var(--acc-cyan); box-shadow: 0 0 20px rgba(0,212,255,.15); }
+    .otp-input::placeholder { color: var(--text-dim); font-size: 16px; letter-spacing: .1em; }
+
+    .btn-activate {
+        width: 100%; padding: 14px; margin-top: 16px;
+        background: linear-gradient(90deg, var(--acc-cyan), var(--acc-violet));
+        border: none; border-radius: 10px; color: #08090c;
+        font-family: 'Fraunces', serif; font-size: 15px; font-weight: 700;
+        cursor: pointer; transition: opacity .2s, transform .2s;
+    }
+    .btn-activate:hover { opacity: .85; transform: translateY(-1px); }
+
+    .manual-secret {
+        font-family: 'Geist Mono', monospace; font-size: 11px; letter-spacing: .12em;
+        padding: 10px 14px; background: rgba(0,0,0,.3); border: 1px solid var(--border);
+        border-radius: 8px; color: var(--text-dim); word-break: break-all;
+        margin-top: 8px; cursor: pointer; transition: background .2s;
+        text-align: center;
+    }
+    .manual-secret:hover { background: rgba(0,212,255,.05); color: var(--text-main); }
+    .secret-hint { font-size: 10px; color: var(--text-dim); margin-top: 4px; text-align: center; }
+</style>
+
+<div class="twofa-wrap">
+    <div class="twofa-panel animate-fade">
+        <div class="eyebrow">Sécurité avancée</div>
+        <h1 class="panel-title">Activer le <span>2FA</span></h1>
+        <p class="panel-sub">L'authentification à deux facteurs protège votre compte même si votre mot de passe est compromis.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+        <div class="alert-strip {{ 'danger' if cat == 'danger' else 'warn' if cat == 'warning' else 'ok' }}">{{ msg }}</div>
+        {% endfor %}
+        {% endwith %}
+
+        <div class="steps">
+            <div class="step">
+                <div class="step-num"></div>
+                <div class="step-body">
+                    <div class="step-title">Installez une app d'authentification</div>
+                    <div class="step-desc">Google Authenticator, Authy ou Microsoft Authenticator sur votre smartphone.</div>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-num"></div>
+                <div class="step-body">
+                    <div class="step-title">Scannez le QR code</div>
+                    <div class="step-desc">Ouvrez l'app et scannez ce code QR avec votre téléphone.</div>
+                    <div class="qr-wrap">
+                        <img src="{{ url_for('auth.totp_qrcode') }}" alt="QR Code 2FA" width="180" height="180">
+                    </div>
+                    <div class="manual-secret" onclick="copySecret(this)" title="Cliquer pour copier">
+                        {{ current_user.totp_secret }}
+                    </div>
+                    <div class="secret-hint">Ou entrez ce code manuellement dans l'app · Cliquer pour copier</div>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-num"></div>
+                <div class="step-body">
+                    <div class="step-title">Confirmez avec le code généré</div>
+                    <div class="step-desc">Entrez le code à 6 chiffres affiché dans votre app pour confirmer l'activation.</div>
+                    <form method="POST" class="otp-group" id="setup-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="text" name="code" id="code-input" class="otp-input"
+                            inputmode="numeric" autocomplete="off"
+                            maxlength="6" placeholder="000 000" autofocus required>
+                        <button type="submit" class="btn-activate">Activer le 2FA</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('code-input').addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '').slice(0, 6);
+});
+
+function copySecret(el) {
+    navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+        const orig = el.textContent;
+        el.textContent = '✓ Copié !';
+        el.style.color = '#22c55e';
+        setTimeout(() => { el.textContent = orig; el.style.color = ''; }, 2000);
+    });
+}
+</script>
+{% endblock %}

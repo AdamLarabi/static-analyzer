@@ -274,12 +274,37 @@ def analyze_office(file_path: str, file_type: str) -> dict:
 
 # ── YARA ─────────────────────────────────────────────────────────────────────
 
+_yara_custom_cache: dict = {}
+_yara_cache_time: float = 0.0
+_YARA_CACHE_TTL = 300  # seconds
+
+
+def _get_custom_yara_sources() -> dict:
+    """Returns active custom YARA rule sources, cached for 5 minutes."""
+    import time
+    global _yara_custom_cache, _yara_cache_time
+    now = time.monotonic()
+    if now - _yara_cache_time < _YARA_CACHE_TTL and _yara_cache_time > 0:
+        return _yara_custom_cache
+    try:
+        from app.models.yara_rule import YaraRule
+        rules = YaraRule.query.filter_by(is_active=True).all()
+        _yara_custom_cache = {f"custom_{r.id}": r.source for r in rules}
+        _yara_cache_time = now
+    except Exception:
+        pass
+    return _yara_custom_cache
+
+
 def run_yara_scan(file_path: str) -> list:
     from app.analysis.yara_engine import YARA_RULES_SOURCE
     matches = []
     try:
         import yara
-        rules = yara.compile(source=YARA_RULES_SOURCE)
+        sources = {"builtin": YARA_RULES_SOURCE}
+        sources.update(_get_custom_yara_sources())
+
+        rules = yara.compile(sources=sources)
         raw   = rules.match(file_path)
         for m in raw:
             meta = m.meta if m.meta else {}

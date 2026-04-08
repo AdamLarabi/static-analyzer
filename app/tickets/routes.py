@@ -2,13 +2,20 @@
 app/tickets/routes.py — Gestion des tickets d'analyse sauvegardés.
 """
 
+import csv
+import io
+import json
 import logging
+from datetime import datetime, timezone
+
 from flask import (Blueprint, render_template, request, redirect,
-                   url_for, flash, abort, jsonify)
+                   url_for, flash, abort, jsonify, Response, stream_with_context)
 from flask_login import login_required, current_user
 
 from app.extensions import db
 from app.models.ticket import Ticket, TicketNote
+from app.models.audit import AuditAction
+from app.utils.audit import log_action
 
 logger = logging.getLogger(__name__)
 tickets_bp = Blueprint("tickets", __name__, url_prefix="/tickets")
@@ -96,6 +103,8 @@ def save_ticket():
     db.session.add(ticket)
     db.session.commit()
 
+    log_action(AuditAction.TICKET_CREATE, target=f"ticket#{ticket.id}",
+               details=f"file={ticket.filename} score={ticket.threat_score}")
     logger.info("Ticket #%d créé par %s pour %s", ticket.id, current_user.username, sha256[:16])
     return jsonify({
         "success": True,
@@ -142,6 +151,7 @@ def add_note(ticket_id: int):
     )
     db.session.add(note)
     db.session.commit()
+    log_action(AuditAction.TICKET_NOTE, target=f"ticket#{ticket.id}")
     flash("Note ajoutée.", "success")
     return redirect(url_for("tickets.ticket_detail", ticket_id=ticket_id))
 
@@ -187,10 +197,106 @@ def rename_ticket(ticket_id: int):
 @login_required
 def delete_ticket(ticket_id: int):
     ticket = _get_ticket_or_403(ticket_id)
+    log_action(AuditAction.TICKET_DELETE, target=f"ticket#{ticket.id}",
+               details=f"file={ticket.filename}")
     db.session.delete(ticket)
     db.session.commit()
     flash("Ticket supprimé.", "info")
     return redirect(url_for("tickets.list_tickets"))
+
+
+# ── Comparaison de deux tickets ───────────────────────────────────────────────
+
+@tickets_bp.route("/compare")
+@login_required
+def compare():
+    """Vue de comparaison côte-à-côte de deux tickets."""
+    id_a = request.args.get("a", type=int)
+    id_b = request.args.get("b", type=int)
+
+    if not id_a or not id_b:
+        flash("Sélectionnez deux tickets à comparer.", "warning")
+        return redirect(url_for("tickets.list_tickets"))
+
+    if id_a == id_b:
+        flash("Sélectionnez deux tickets différents.", "warning")
+        return redirect(url_for("tickets.list_tickets"))
+
+    ticket_a = _get_ticket_or_403(id_a)
+    ticket_b = _get_ticket_or_403(id_b)
+
+    return render_template("tickets/compare.html",
+                           ticket_a=ticket_a, data_a=ticket_a.result,
+                           ticket_b=ticket_b, data_b=ticket_b.result)
+
+
+# ── Export JSON (ticket unique) ───────────────────────────────────────────────
+
+@tickets_bp.route("/<int:ticket_id>/export/json")
+@login_required
+def export_ticket_json(ticket_id: int):
+    """Télécharge le rapport complet d'un ticket en JSON."""
+    ticket = _get_ticket_or_403(ticket_id)
+    payload = {
+        "ticket_id":    ticket.id,
+        "filename":     ticket.filename,
+        "sha256":       ticket.sha256,
+        "md5":          ticket.md5,
+        "sha1":         ticket.sha1,
+        "file_type":    ticket.file_type,
+        "threat_score": ticket.threat_score,
+        "threat_level": ticket.threat_level,
+        "tags":         ticket.tags,
+        "comment":      ticket.comment,
+        "created_at":   ticket.created_at.isoformat(),
+        "analyst":      ticket.owner.username if ticket.owner else None,
+        "analysis":     ticket.result,
+    }
+    buf = io.BytesIO(json.dumps(payload, indent=2, default=str).encode("utf-8"))
+    filename = f"DATAPROTECT-ticket-{ticket.id}.json"
+    return Response(
+        buf.getvalue(),
+        mimetype="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ── Export CSV (liste de tickets) ─────────────────────────────────────────────
+
+@tickets_bp.route("/export/csv")
+@login_required
+def export_tickets_csv():
+    """Télécharge tous les tickets accessibles en CSV."""
+    query = Ticket.query.order_by(Ticket.created_at.desc())
+    if not current_user.is_admin:
+        query = query.filter_by(user_id=current_user.id)
+    tickets = query.all()
+
+    def generate():
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow([
+            "ID", "Fichier", "SHA256", "MD5", "SHA1",
+            "Type", "Score", "Niveau", "Tags", "Commentaire",
+            "Analyste", "Date création",
+        ])
+        for t in tickets:
+            writer.writerow([
+                t.id, t.filename, t.sha256, t.md5 or "", t.sha1 or "",
+                t.file_type or "", t.threat_score, t.threat_level,
+                "|".join(t.tags), t.comment or "",
+                t.owner.username if t.owner else "",
+                t.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            ])
+        yield buf.getvalue()
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    filename = f"DATAPROTECT-tickets-{ts}.csv"
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── Helper ────────────────────────────────────────────────────────────────────

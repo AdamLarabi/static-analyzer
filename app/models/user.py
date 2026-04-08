@@ -4,9 +4,11 @@ Gère l'authentification, les rôles et les permissions granulaires.
 """
 
 import json
+import secrets
 from enum import Enum as PyEnum
 from datetime import datetime, timezone
 
+import pyotp
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -40,6 +42,11 @@ class User(UserMixin, db.Model):
                              default='{"save_ticket": false, "generate_pdf": false}')
     created_at   = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     last_login   = db.Column(db.DateTime, nullable=True)
+
+    # ── 2FA TOTP ──────────────────────────────────────────────────────────────
+    totp_secret      = db.Column(db.String(64),  nullable=True)   # Secret TOTP (base32)
+    totp_enabled     = db.Column(db.Boolean,     nullable=False, default=False)
+    totp_backup_codes= db.Column(db.Text,        nullable=True)   # JSON list of hashed backup codes
 
     # Relation avec les tickets
     tickets = db.relationship("Ticket", backref="owner", lazy="dynamic",
@@ -82,6 +89,57 @@ class User(UserMixin, db.Model):
         perms = self.permissions
         perms[perm] = value
         self.permissions = perms
+
+    # ── 2FA TOTP helpers ──────────────────────────────────────────────────────
+
+    def generate_totp_secret(self) -> str:
+        """Génère un nouveau secret TOTP et le stocke (sans activer le 2FA)."""
+        self.totp_secret = pyotp.random_base32()
+        return self.totp_secret
+
+    def get_totp_uri(self) -> str:
+        """Retourne l'URI TOTP pour générer le QR code."""
+        return pyotp.totp.TOTP(self.totp_secret).provisioning_uri(
+            name=self.username,
+            issuer_name="DataProtect Analyzer"
+        )
+
+    def verify_totp(self, code: str) -> bool:
+        """Vérifie un code TOTP (fenêtre ±1 période de 30s pour les décalages d'horloge)."""
+        if not self.totp_secret:
+            return False
+        totp = pyotp.TOTP(self.totp_secret)
+        return totp.verify(code, valid_window=1)
+
+    BACKUP_CODE_LENGTH = 8  # hex chars per backup code (token_hex(4))
+
+    def generate_backup_codes(self) -> list[str]:
+        """Génère 8 codes de secours à usage unique, les hache et les stocke."""
+        codes = [secrets.token_hex(self.BACKUP_CODE_LENGTH // 2).upper() for _ in range(8)]
+        hashed = [generate_password_hash(c) for c in codes]
+        self.totp_backup_codes = json.dumps(hashed)
+        return codes  # Retourne les codes en clair (affichage unique)
+
+    def use_backup_code(self, code: str) -> bool:
+        """Consomme un code de secours. Retourne True si valide."""
+        if not self.totp_backup_codes:
+            return False
+        try:
+            hashed_list = json.loads(self.totp_backup_codes)
+        except (json.JSONDecodeError, TypeError):
+            return False
+        for i, h in enumerate(hashed_list):
+            if check_password_hash(h, code.upper().strip()):
+                hashed_list.pop(i)
+                self.totp_backup_codes = json.dumps(hashed_list)
+                return True
+        return False
+
+    def disable_totp(self) -> None:
+        """Désactive le 2FA et efface toutes les données TOTP."""
+        self.totp_enabled      = False
+        self.totp_secret       = None
+        self.totp_backup_codes = None
 
     # ── Role helpers ──────────────────────────────────────────────────────────
 

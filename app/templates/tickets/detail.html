@@ -270,6 +270,7 @@
         <button class="btn btn-primary" onclick="document.getElementById('pdf-modal').classList.add('open')">📄 PDF Rapport</button>
         {% endif %}
         <a class="btn btn-ghost" href="{{ ticket.vt_url }}" target="_blank" rel="noopener">🔗 VirusTotal</a>
+        <a class="btn btn-ghost" href="{{ url_for('tickets.export_ticket_json', ticket_id=ticket.id) }}" title="Exporter en JSON">⬇ JSON</a>
         <button class="btn btn-violet" onclick="document.getElementById('delete-modal').classList.add('open')">🗑 Supprimer</button>
     </div>
 </div>

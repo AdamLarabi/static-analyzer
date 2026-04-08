@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ':*)",
+      "Bash(pip show:*)",
+      "Bash(ls *.cfg *.toml *.ini venv* .venv* env*)",
+      "Bash(where python3:*)",
+      "Read(//c/Users/dell/AppData/Local/Programs/Python//**)",
+      "Read(//c/Users/dell//**)",
+      "Bash(/c/Users/dell/AppData/Local/Programs/Python/Python311/python.exe -c \"import flask; print\\('Flask', flask.__version__\\)\")",
+      "Bash(py -3.11 -c ':*)"
+    ]
+  }
+}

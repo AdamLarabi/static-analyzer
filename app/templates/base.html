@@ -360,8 +360,12 @@
             <a class="nav-link {% if request.blueprint == 'tickets' %}active{% endif %}"
                 href="{{ url_for('tickets.list_tickets') }}">Tickets</a>
             {% if current_user.is_admin %}
-            <a class="nav-link admin {% if request.blueprint == 'admin' %}active{% endif %}"
+            <a class="nav-link {% if request.endpoint == 'admin.dashboard' %}active{% endif %}"
                 href="{{ url_for('admin.dashboard') }}">Admin</a>
+            <a class="nav-link {% if request.endpoint and 'yara' in request.endpoint %}active{% endif %}"
+                href="{{ url_for('admin.yara_rules') }}">YARA</a>
+            <a class="nav-link {% if request.endpoint == 'admin.audit_log' %}active{% endif %}"
+                href="{{ url_for('admin.audit_log') }}">Audit</a>
             {% endif %}
         </div>
         <div class="nav-spacer"></div>
@@ -370,6 +374,12 @@
             <span class="badge {% if current_user.is_admin %}badge-admin{% else %}badge-analyst{% endif %}">
                 {{ current_user.role.value }}
             </span>
+            <a class="nav-link {% if request.endpoint and 'totp' in request.endpoint %}active{% endif %}"
+               href="{{ url_for('auth.totp_manage') }}"
+               title="Gestion 2FA"
+               style="font-size:10px;padding:6px 12px;">
+               {% if current_user.totp_enabled %}🔒{% else %}🔓{% endif %} 2FA
+            </a>
             <a class="btn-logout" href="{{ url_for('auth.logout') }}">Déconnexion</a>
         </div>
     </nav>

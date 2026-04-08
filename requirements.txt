@@ -31,5 +31,13 @@ gunicorn==22.0.0
 # ── BDD ───────────────────────────────────────────────────────────
 SQLAlchemy==2.0.31
 python-dotenv>=1.0.1
+Flask-Migrate==4.0.7
+
+# ── 2FA TOTP ──────────────────────────────────────────────────────
+pyotp==2.9.0
+qrcode[pil]==7.4.2
+
+# ── Rate limiting Redis (optionnel) ───────────────────────────────
+redis>=5.0.0
 
 # Forcer l'encodage UTF-8 (ligne de test)

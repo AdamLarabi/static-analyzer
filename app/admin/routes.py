@@ -4,6 +4,7 @@ Toutes les routes sont protégées par @admin_required.
 """
 
 import logging
+import re
 from datetime import datetime, timezone, timedelta
 from functools import wraps
 
@@ -12,9 +13,18 @@ from flask import (Blueprint, render_template, request, redirect,
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 
+from werkzeug.utils import secure_filename
+
+import yara
+from sqlalchemy import func
+
 from app.extensions import db
 from app.models.user import User, Role
 from app.models.ticket import Ticket
+from app.models.audit import AuditAction, AuditLog
+from app.models.yara_rule import YaraRule
+from app.utils.audit import log_action
+from app.analysis.yara_engine import YARA_RULES_SOURCE
 
 logger = logging.getLogger(__name__)
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -80,18 +90,20 @@ def dashboard():
                 yara_counter[rule] = yara_counter.get(rule, 0) + 1
     top_yara = sorted(yara_counter.items(), key=lambda x: x[1], reverse=True)[:8]
 
-    # Activité par utilisateur
-    user_activity = []
-    for user in User.query.filter_by(role=Role.ANALYST).all():
-        count = Ticket.query.filter_by(user_id=user.id).count()
-        last  = (Ticket.query.filter_by(user_id=user.id)
-                 .order_by(Ticket.created_at.desc())
-                 .first())
-        user_activity.append({
-            "user":         user,
-            "ticket_count": count,
-            "last_analysis": last.created_at if last else None,
-        })
+    # Activité par utilisateur (single query with aggregation)
+    rows = (db.session.query(
+                User,
+                func.count(Ticket.id).label("ticket_count"),
+                func.max(Ticket.created_at).label("last_analysis"),
+            )
+            .outerjoin(Ticket, Ticket.user_id == User.id)
+            .filter(User.role == Role.ANALYST)
+            .group_by(User.id)
+            .all())
+    user_activity = [
+        {"user": u, "ticket_count": cnt, "last_analysis": last}
+        for u, cnt, last in rows
+    ]
 
     return render_template("admin/dashboard.html",
         total_users    = total_users,
@@ -162,6 +174,7 @@ def create_user():
     db.session.add(user)
     db.session.commit()
 
+    log_action(AuditAction.USER_CREATE, target=f"user:{username}", details=f"role={role}")
     logger.info("Utilisateur créé: %s [%s] par admin %s", username, role, current_user.username)
     flash(f"Utilisateur '{username}' créé avec succès.", "success")
     return redirect(url_for("admin.users"))
@@ -179,6 +192,7 @@ def toggle_user_active(user_id: int):
     db.session.commit()
 
     status = "activé" if user.is_active else "désactivé"
+    log_action(AuditAction.USER_TOGGLE, target=f"user:{user.username}", details=status)
     logger.info("Compte %s %s par %s", user.username, status, current_user.username)
     return jsonify({"active": user.is_active, "status": status})
 
@@ -202,10 +216,8 @@ def update_permissions(user_id: int):
     user.set_permission(perm, val)
     db.session.commit()
 
-    logger.info(
-        "Permission %s=%s pour %s par admin %s",
-        perm, val, user.username, current_user.username
-    )
+    log_action(AuditAction.USER_PERM, target=f"user:{user.username}", details=f"{perm}={val}")
+    logger.info("Permission %s=%s pour %s par admin %s", perm, val, user.username, current_user.username)
     return jsonify({"success": True, "permission": perm, "value": val})
 
 
@@ -222,6 +234,7 @@ def reset_password(user_id: int):
     try:
         user.set_password(password)
         db.session.commit()
+        log_action(AuditAction.USER_RESET_PWD, target=f"user:{user.username}")
         flash(f"Mot de passe de '{user.username}' réinitialisé.", "success")
     except ValueError as e:
         flash(str(e), "danger")
@@ -239,12 +252,154 @@ def delete_user(user_id: int):
         return redirect(url_for("admin.users"))
 
     username = user.username
+    log_action(AuditAction.USER_DELETE, target=f"user:{username}")
     db.session.delete(user)
     db.session.commit()
 
     logger.info("Utilisateur %s supprimé par %s", username, current_user.username)
     flash(f"Utilisateur '{username}' supprimé.", "info")
     return redirect(url_for("admin.users"))
+
+
+# ── YARA Rules Manager ───────────────────────────────────────────────────────
+
+@admin_bp.route("/yara")
+@admin_required
+def yara_rules():
+    """Liste des règles YARA — built-in + custom."""
+    builtin_names = re.findall(r'rule\s+(\w+)', YARA_RULES_SOURCE)
+
+    custom_rules = YaraRule.query.order_by(YaraRule.created_at.desc()).all()
+    return render_template("admin/yara.html",
+                           builtin_names=builtin_names,
+                           custom_rules=custom_rules)
+
+
+@admin_bp.route("/yara/upload", methods=["POST"])
+@admin_required
+def yara_upload():
+    """Upload et valide une règle YARA custom."""
+    name    = request.form.get("name", "").strip()
+    desc    = request.form.get("description", "").strip()[:256]
+    severity= request.form.get("severity", "medium")
+    source  = ""
+
+    # Source via textarea ou fichier uploadé
+    if "rule_file" in request.files and request.files["rule_file"].filename:
+        f = request.files["rule_file"]
+        if not secure_filename(f.filename).endswith(".yar"):
+            flash("Seuls les fichiers .yar sont acceptés.", "danger")
+            return redirect(url_for("admin.yara_rules"))
+        try:
+            source = f.read().decode("utf-8")
+        except UnicodeDecodeError:
+            flash("Le fichier doit être encodé en UTF-8.", "danger")
+            return redirect(url_for("admin.yara_rules"))
+    else:
+        source = request.form.get("source", "").strip()
+
+    if not name:
+        flash("Le nom de la règle est requis.", "danger")
+        return redirect(url_for("admin.yara_rules"))
+
+    if not source:
+        flash("Le contenu de la règle est requis.", "danger")
+        return redirect(url_for("admin.yara_rules"))
+
+    if severity not in ("critical", "high", "medium", "low"):
+        severity = "medium"
+
+    # Vérifier unicité du nom
+    if YaraRule.query.filter_by(name=name).first():
+        flash(f"Une règle nommée '{name}' existe déjà.", "danger")
+        return redirect(url_for("admin.yara_rules"))
+
+    # Validation syntaxique YARA — erreur claire si invalide
+    try:
+        yara.compile(source=source)
+    except yara.SyntaxError as e:
+        flash(f"Erreur de syntaxe YARA : {e}", "danger")
+        return redirect(url_for("admin.yara_rules"))
+    except Exception as e:
+        flash(f"Erreur de compilation YARA : {e}", "danger")
+        return redirect(url_for("admin.yara_rules"))
+
+    rule = YaraRule(
+        name        = name,
+        description = desc,
+        source      = source,
+        severity    = severity,
+        is_active   = True,
+        uploaded_by = current_user.id,
+    )
+    db.session.add(rule)
+    db.session.commit()
+
+    log_action(AuditAction.YARA_UPLOAD, target=f"yara:{name}")
+    logger.info("Règle YARA '%s' uploadée par %s", name, current_user.username)
+    flash(f"Règle '{name}' ajoutée avec succès.", "success")
+    return redirect(url_for("admin.yara_rules"))
+
+
+@admin_bp.route("/yara/<int:rule_id>/toggle", methods=["POST"])
+@admin_required
+def yara_toggle(rule_id: int):
+    """Active ou désactive une règle YARA custom."""
+    rule = YaraRule.query.get_or_404(rule_id)
+    rule.is_active = not rule.is_active
+    db.session.commit()
+
+    log_action(AuditAction.YARA_TOGGLE, target=f"yara:{rule.name}",
+               details="active" if rule.is_active else "disabled")
+    return jsonify({"active": rule.is_active, "name": rule.name})
+
+
+@admin_bp.route("/yara/<int:rule_id>/delete", methods=["POST"])
+@admin_required
+def yara_delete(rule_id: int):
+    """Supprime une règle YARA custom."""
+    rule = YaraRule.query.get_or_404(rule_id)
+    name = rule.name
+    log_action(AuditAction.YARA_DELETE, target=f"yara:{name}")
+    db.session.delete(rule)
+    db.session.commit()
+    flash(f"Règle '{name}' supprimée.", "info")
+    return redirect(url_for("admin.yara_rules"))
+
+
+@admin_bp.route("/yara/<int:rule_id>/source")
+@admin_required
+def yara_source(rule_id: int):
+    """Retourne le source d'une règle custom en JSON (pour l'affichage modal)."""
+    rule = YaraRule.query.get_or_404(rule_id)
+    return jsonify({"name": rule.name, "source": rule.source, "description": rule.description})
+
+
+# ── Audit Log ────────────────────────────────────────────────────────────────
+
+@admin_bp.route("/audit")
+@admin_required
+def audit_log():
+    """Journal d'audit — toutes les actions sensibles."""
+    page        = request.args.get("page", 1, type=int)
+    action_filter = request.args.get("action", "")
+    user_filter   = request.args.get("user", "")
+
+    query = AuditLog.query.order_by(AuditLog.created_at.desc())
+    if action_filter:
+        query = query.filter(AuditLog.action == action_filter)
+    if user_filter:
+        query = query.filter(AuditLog.username.ilike(f"%{user_filter}%"))
+
+    logs        = query.paginate(page=page, per_page=50, error_out=False)
+    all_actions = db.session.query(AuditLog.action).distinct().order_by(AuditLog.action).all()
+    all_actions = [a[0] for a in all_actions]
+
+    return render_template("admin/audit.html",
+                           logs=logs,
+                           all_actions=all_actions,
+                           action_filter=action_filter,
+                           user_filter=user_filter)
 
 
 # ── Alertes ───────────────────────────────────────────────────────────────────

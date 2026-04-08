@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+{% block title %}Rapport en masse — {{ results|length }} fichiers{% endblock %}
+
+{% block extra_head %}
+<style>
+    .batch-header {
+        padding-bottom: 32px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 32px;
+    }
+    .batch-eyebrow {
+        font-size: 9px; letter-spacing: .18em; color: var(--acc-violet);
+        text-transform: uppercase; margin-bottom: 10px;
+    }
+    .batch-title {
+        font-family: 'Fraunces', serif; font-size: clamp(26px,4vw,42px);
+        font-weight: 900; color: var(--text-main); line-height: 1.05;
+        letter-spacing: -.03em;
+    }
+    .batch-title span { color: var(--acc-cyan); }
+    .batch-sub { margin-top: 8px; font-size: 11px; color: var(--text-dim); }
+
+    /* ── Summary bar ── */
+    .summary-bar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 28px;
+    }
+    .summary-pill {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: 50px;
+        font-size: 11px;
+        font-weight: 600;
+        border: 1px solid;
+    }
+    .pill-total   { background: rgba(142,124,255,.1); color: var(--acc-violet); border-color: rgba(142,124,255,.3); }
+    .pill-critical{ background: rgba(239,68,68,.1);   color: #ef4444;           border-color: rgba(239,68,68,.3); }
+    .pill-high    { background: rgba(249,115,22,.1);  color: #f97316;           border-color: rgba(249,115,22,.3); }
+    .pill-medium  { background: rgba(234,179,8,.1);   color: #eab308;           border-color: rgba(234,179,8,.3); }
+    .pill-low     { background: rgba(34,197,94,.1);   color: #22c55e;           border-color: rgba(34,197,94,.3); }
+    .pill-error   { background: rgba(255,59,92,.1);   color: var(--acc-red);    border-color: rgba(255,59,92,.3); }
+    .pill-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+    /* ── Table ── */
+    .results-table-wrap {
+        overflow-x: auto;
+        border-radius: 16px;
+        border: 1px solid var(--glass-border);
+        background: var(--bg-card);
+        backdrop-filter: blur(10px);
+        margin-bottom: 24px;
+    }
+    .results-table { width: 100%; border-collapse: collapse; }
+    .results-table th {
+        padding: 14px 18px;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: .12em;
+        color: var(--text-dim);
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+        text-align: left;
+    }
+    .results-table td {
+        padding: 14px 18px;
+        font-size: 12px;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        vertical-align: middle;
+    }
+    .results-table tr:last-child td { border-bottom: none; }
+    .results-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── Score badge inline ── */
+    .score-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        font-size: 13px;
+    }
+    .score-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        flex-shrink: 0;
+        box-shadow: 0 0 8px currentColor;
+    }
+
+    /* ── Level badge ── */
+    .level-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+    }
+    .lvl-CRITICAL { background: rgba(239,68,68,.15);  color: #ef4444; border: 1px solid rgba(239,68,68,.3); }
+    .lvl-HIGH     { background: rgba(249,115,22,.15); color: #f97316; border: 1px solid rgba(249,115,22,.3); }
+    .lvl-MEDIUM   { background: rgba(234,179,8,.15);  color: #eab308; border: 1px solid rgba(234,179,8,.3); }
+    .lvl-LOW      { background: rgba(34,197,94,.15);  color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+
+    /* ── Tag mini ── */
+    .yara-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 9px;
+        border-radius: 20px;
+        font-size: 10px;
+        background: rgba(142,124,255,.12);
+        color: var(--acc-violet);
+        border: 1px solid rgba(142,124,255,.2);
+    }
+
+    /* ── Actions ── */
+    .row-actions { display: flex; gap: 6px; }
+    .btn-xs {
+        padding: 5px 12px;
+        border-radius: 8px;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        border: 1px solid;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all .2s;
+        font-family: inherit;
+    }
+    .btn-xs-save {
+        background: rgba(0,212,255,.08); color: var(--acc-cyan);
+        border-color: rgba(0,212,255,.25);
+    }
+    .btn-xs-save:hover { background: rgba(0,212,255,.18); }
+
+    /* ── Error rows ── */
+    .error-section { margin-top: 20px; }
+    .error-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 18px;
+        border-radius: 10px;
+        background: rgba(255,59,92,.06);
+        border: 1px solid rgba(255,59,92,.2);
+        font-size: 11px;
+        color: #ffb3bf;
+        margin-bottom: 8px;
+    }
+    .error-filename { color: var(--text-main); font-weight: 600; }
+
+    /* ── Sort controls ── */
+    .table-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .sort-btn {
+        padding: 6px 14px; border-radius: 8px; font-size: 10px;
+        font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+        cursor: pointer; border: 1px solid var(--border);
+        background: var(--bg-surface); color: var(--text-dim);
+        font-family: inherit; transition: all .2s;
+    }
+    .sort-btn.active { color: var(--acc-cyan); border-color: rgba(0,212,255,.3); background: rgba(0,212,255,.08); }
+
+    /* ── Save all ── */
+    .actions-bar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 28px;
+        align-items: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container animate-fade">
+
+    <!-- Header -->
+    <div class="batch-header">
+        <div class="batch-eyebrow">Rapport d'Analyse en Masse</div>
+        <h1 class="batch-title">
+            <span>{{ results|length }}</span> fichier{{ 's' if results|length > 1 else '' }} analysé{{ 's' if results|length > 1 else '' }}
+        </h1>
+        <p class="batch-sub">
+            Résultats obtenus le {{ now.strftime('%d/%m/%Y à %H:%M') if now else '' }} UTC
+            {% if errors %} · <span style="color:var(--acc-red)">{{ errors|length }} erreur(s)</span>{% endif %}
+        </p>
+    </div>
+
+    <!-- Summary bar -->
+    {% set critical_count = results | selectattr('threat_score.level', 'equalto', 'CRITICAL') | list | length %}
+    {% set high_count     = results | selectattr('threat_score.level', 'equalto', 'HIGH')     | list | length %}
+    {% set medium_count   = results | selectattr('threat_score.level', 'equalto', 'MEDIUM')   | list | length %}
+    {% set low_count      = results | selectattr('threat_score.level', 'equalto', 'LOW')      | list | length %}
+
+    <div class="summary-bar">
+        <div class="summary-pill pill-total">
+            <div class="pill-dot"></div>
+            {{ results|length }} total
+        </div>
+        {% if critical_count %}<div class="summary-pill pill-critical"><div class="pill-dot"></div>{{ critical_count }} Critical</div>{% endif %}
+        {% if high_count     %}<div class="summary-pill pill-high">    <div class="pill-dot"></div>{{ high_count }} High</div>{% endif %}
+        {% if medium_count   %}<div class="summary-pill pill-medium">  <div class="pill-dot"></div>{{ medium_count }} Medium</div>{% endif %}
+        {% if low_count      %}<div class="summary-pill pill-low">     <div class="pill-dot"></div>{{ low_count }} Low</div>{% endif %}
+        {% if errors         %}<div class="summary-pill pill-error">   <div class="pill-dot"></div>{{ errors|length }} Erreur(s)</div>{% endif %}
+    </div>
+
+    <!-- Actions bar -->
+    <div class="actions-bar">
+        <a href="{{ url_for('analysis.upload') }}" class="btn btn-ghost" style="font-size:10px;padding:8px 18px;">
+            ← Nouvelle analyse
+        </a>
+        {% if can_save %}
+        <button class="btn btn-primary" style="font-size:10px;padding:8px 18px;" onclick="saveAll()" id="save-all-btn">
+            Sauvegarder tout en tickets
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- Table controls -->
+    <div class="table-controls">
+        <span style="font-size:11px;color:var(--text-dim);">Trier par :</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="sort-btn active" onclick="sortTable('score', this)">Score</button>
+            <button class="sort-btn" onclick="sortTable('name', this)">Nom</button>
+            <button class="sort-btn" onclick="sortTable('type', this)">Type</button>
+        </div>
+    </div>
+
+    <!-- Results table -->
+    {% if results %}
+    <div class="results-table-wrap">
+        <table class="results-table" id="results-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Fichier</th>
+                    <th>Type</th>
+                    <th>Score</th>
+                    <th>Niveau</th>
+                    <th>YARA</th>
+                    <th>SHA256</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="results-tbody">
+                {% for r in results | sort(attribute='threat_score.score', reverse=True) %}
+                {% set score = r.threat_score.score | default(0) %}
+                {% set level = r.threat_score.level | default('LOW') %}
+                {% set color = r.threat_score.color | default('#22c55e') %}
+                <tr data-score="{{ score }}" data-name="{{ r.filename }}" data-type="{{ r.file_type | default('?') }}">
+                    <td style="color:var(--text-dim);font-size:11px;">{{ loop.index }}</td>
+                    <td>
+                        <span style="color:var(--text-main);font-weight:500;word-break:break-all;">{{ r.filename }}</span>
+                    </td>
+                    <td>
+                        <span style="font-size:10px;color:var(--text-dim);background:rgba(255,255,255,0.05);padding:2px 8px;border-radius:6px;border:1px solid var(--border);">
+                            {{ r.file_type | default('UNKNOWN') }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="score-inline" style="color:{{ color }};">
+                            <div class="score-dot" style="color:{{ color }};"></div>
+                            {{ score }}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="level-badge lvl-{{ level }}">{{ level }}</span>
+                    </td>
+                    <td>
+                        {% set yara_count = r.yara_matches | default([]) | length %}
+                        {% if yara_count > 0 %}
+                        <span class="yara-count">{{ yara_count }} règle{{ 's' if yara_count > 1 else '' }}</span>
+                        {% else %}
+                        <span style="color:var(--text-dim);font-size:11px;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--text-dim);">
+                            {{ r.hashes.sha256[:16] if r.hashes and r.hashes.sha256 else '—' }}…
+                        </span>
+                    </td>
+                    <td>
+                        <div class="row-actions">
+                            {% if can_save %}
+                            <button class="btn-xs btn-xs-save" onclick="saveOne({{ loop.index0 }}, this)">
+                                Sauvegarder
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Errors section -->
+    {% if errors %}
+    <div class="error-section">
+        <div class="card" style="border-color:rgba(255,59,92,0.2);">
+            <div class="section-head">
+                <div class="section-head-line" style="background:var(--acc-red);"></div>
+                <h2 style="color:var(--acc-red);">Fichiers en erreur</h2>
+            </div>
+            {% for err in errors %}
+            <div class="error-row">
+                <span>⚠</span>
+                <span class="error-filename">{{ err.filename }}</span>
+                <span>—</span>
+                <span>{{ err.error }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+const allResults = {{ results | tojson }};
+const SAVE_URL   = "{{ url_for('tickets.save_ticket') }}";
+const CSRF_TOKEN = "{{ csrf_token() }}";
+
+// ── Tri du tableau ────────────────────────────────────────────────────────────
+function sortTable(key, triggerBtn) {
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    triggerBtn.classList.add('active');
+    const tbody = document.getElementById('results-tbody');
+    const rows  = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => {
+        if (key === 'score') return parseInt(b.dataset.score) - parseInt(a.dataset.score);
+        if (key === 'name')  return a.dataset.name.localeCompare(b.dataset.name);
+        return a.dataset.type.localeCompare(b.dataset.type);
+    });
+    rows.forEach(r => tbody.appendChild(r));
+}
+
+// ── Fetch helper (shared) ─────────────────────────────────────────────────────
+async function _postTicket(result) {
+    const resp = await fetch(SAVE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body: JSON.stringify({ result, comment: '', tags: [] })
+    });
+    return resp.json();
+}
+
+// ── Sauvegarder un fichier ────────────────────────────────────────────────────
+async function saveOne(idx, btn) {
+    const result = allResults[idx];
+    if (!result) return;
+    btn.disabled = true;
+    btn.textContent = '…';
+    try {
+        const data = await _postTicket(result);
+        if (data.success)      { btn.textContent = '✓ Sauvegardé';   btn.style.color = '#22c55e'; }
+        else if (data.warning) { btn.textContent = 'Déjà existant';   btn.style.color = '#eab308'; }
+        else                   { btn.textContent = 'Erreur';           btn.style.color = 'var(--acc-red)'; btn.disabled = false; }
+    } catch {
+        btn.textContent = 'Erreur'; btn.disabled = false;
+    }
+}
+
+// ── Sauvegarder tous (parallel) ───────────────────────────────────────────────
+async function saveAll() {
+    const btn = document.getElementById('save-all-btn');
+    btn.disabled = true;
+    btn.textContent = 'Sauvegarde en cours…';
+    const settled = await Promise.allSettled(allResults.map(r => _postTicket(r)));
+    let saved = 0, skipped = 0, failed = 0;
+    settled.forEach(s => {
+        if (s.status === 'rejected') { failed++; return; }
+        if (s.value.success)       saved++;
+        else if (s.value.warning)  skipped++;
+        else                       failed++;
+    });
+    btn.textContent = `✓ ${saved} sauvegardé(s)${skipped ? ` · ${skipped} déjà existant(s)` : ''}${failed ? ` · ${failed} erreur(s)` : ''}`;
+    setTimeout(() => { btn.disabled = false; btn.textContent = 'Sauvegarder tout en tickets'; }, 4000);
+}
+</script>
+{% endblock %}

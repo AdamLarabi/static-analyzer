@@ -172,9 +172,25 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>Mes Tickets{% if current_user.is_admin %} — Vue Globale{% endif %}</h1>
-    <p>{{ tickets|length }} ticket(s) sauvegardé(s)</p>
+<div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px;">
+    <div>
+        <h1>Mes Tickets{% if current_user.is_admin %} — Vue Globale{% endif %}</h1>
+        <p>{{ tickets|length }} ticket(s) sauvegardé(s)</p>
+    </div>
+    {% if tickets %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="{{ url_for('tickets.export_tickets_csv') }}"
+           class="btn btn-ghost"
+           style="font-size:10px;padding:8px 16px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+            ⬇ Exporter CSV
+        </a>
+        <button class="btn btn-ghost" id="compare-btn"
+           style="font-size:10px;padding:8px 16px;display:none;gap:6px;"
+           onclick="launchCompare()">
+            ⇄ Comparer (2)
+        </button>
+    </div>
+    {% endif %}
 </div>
 
 {# Stats rapides #}
@@ -221,6 +237,7 @@
         <table id="tickets-table">
             <thead>
                 <tr>
+                    <th style="width:32px;"></th>
                     <th>#</th>
                     {% if current_user.is_admin %}<th>Analyste</th>{% endif %}
                     <th>Fichier</th>
@@ -236,6 +253,11 @@
                 {% for t in tickets %}
                 <tr data-level="{{ t.threat_level }}"
                     data-search="{{ t.filename|lower }} {{ t.sha256 }} {{ t.tags|join(' ')|lower }} {{ t.owner.username|lower if current_user.is_admin }}">
+                    <td>
+                        <input type="checkbox" class="compare-chk" value="{{ t.id }}"
+                               onchange="updateCompare()"
+                               style="accent-color:var(--acc-cyan);cursor:pointer;width:14px;height:14px;">
+                    </td>
                     <td style="color:var(--text-dim);font-size:11px;">#{{ t.id }}</td>
                     {% if current_user.is_admin %}
                     <td style="font-size:11px;">{{ t.owner.username }}</td>
@@ -283,14 +305,39 @@
 {% endif %}
 
 <script>
-    function filterTickets() {
-        const q = document.getElementById('search-input').value.toLowerCase();
-        const level = document.getElementById('level-filter').value;
-        document.querySelectorAll('#tickets-table tbody tr').forEach(row => {
-            const matchSearch = !q || row.dataset.search.includes(q);
-            const matchLevel = !level || row.dataset.level === level;
-            row.style.display = (matchSearch && matchLevel) ? '' : 'none';
-        });
+function filterTickets() {
+    const q     = document.getElementById('search-input').value.toLowerCase();
+    const level = document.getElementById('level-filter').value;
+    document.querySelectorAll('#tickets-table tbody tr').forEach(row => {
+        const matchSearch = !q     || row.dataset.search.includes(q);
+        const matchLevel  = !level || row.dataset.level === level;
+        row.style.display = (matchSearch && matchLevel) ? '' : 'none';
+    });
+}
+
+// ── Compare checkboxes ────────────────────────────────────────────────────
+function updateCompare() {
+    const checked = Array.from(document.querySelectorAll('.compare-chk:checked'));
+    const btn = document.getElementById('compare-btn');
+    // Max 2 checkboxes
+    if (checked.length > 2) {
+        // Uncheck the one just clicked if more than 2
+        const chks = document.querySelectorAll('.compare-chk');
+        chks.forEach(c => { if (!checked.slice(0,2).includes(c)) c.checked = false; });
     }
+    const selected = Array.from(document.querySelectorAll('.compare-chk:checked'));
+    if (selected.length === 2) {
+        btn.style.display = 'inline-flex';
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+function launchCompare() {
+    const selected = Array.from(document.querySelectorAll('.compare-chk:checked'));
+    if (selected.length !== 2) return;
+    const [a, b] = selected.map(c => c.value);
+    window.location.href = `{{ url_for('tickets.compare') }}?a=${a}&b=${b}`;
+}
 </script>
 {% endblock %}

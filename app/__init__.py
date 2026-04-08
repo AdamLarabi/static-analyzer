@@ -12,7 +12,7 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask
 
 from app.config import config_map
-from app.extensions import db, login_manager, limiter, csrf
+from app.extensions import db, migrate, login_manager, limiter, csrf
 
 
 def create_app(env: str = None) -> Flask:
@@ -31,6 +31,7 @@ def create_app(env: str = None) -> Flask:
 
     # ── Extensions ───────────────────────────────────────────────────────────
     db.init_app(app)
+    migrate.init_app(app, db)
     login_manager.init_app(app)
     limiter.init_app(app)
     csrf.init_app(app)
@@ -45,6 +46,7 @@ def create_app(env: str = None) -> Flask:
 
     # ── Création des tables (si elles n'existent pas) ─────────────────────────
     with app.app_context():
+        from app.models import user, ticket, audit, yara_rule  # noqa: F401 — enregistre les modèles
         db.create_all()
         _create_default_admin(app)
 

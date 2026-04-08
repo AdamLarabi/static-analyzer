@@ -11,12 +11,13 @@
 
     .upload-panel {
         width: 100%;
-        max-width: 520px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 10px;
+        max-width: 560px;
+        background: var(--bg-card);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
         padding: 44px 40px;
         position: relative;
+        backdrop-filter: blur(10px);
     }
 
     .upload-panel::before {
@@ -39,29 +40,59 @@
     }
 
     .upload-title {
-        font-family: var(--serif);
+        font-family: 'Fraunces', serif;
         font-size: 32px;
         font-weight: 900;
-        color: var(--text-head);
+        color: var(--text-main);
         line-height: 1.05;
         letter-spacing: -.03em;
         margin-bottom: 6px;
     }
 
-    .upload-title span {
-        color: var(--acc-cyan);
-        font-style: normal;
-    }
+    .upload-title span { color: var(--acc-cyan); }
 
     .upload-sub {
         font-size: 11px;
         color: var(--text-dim);
-        margin-bottom: 28px;
+        margin-bottom: 20px;
     }
 
+    /* ── Mode tabs ── */
+    .mode-tabs {
+        display: flex;
+        gap: 4px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 4px;
+        margin-bottom: 20px;
+    }
+    .mode-tab {
+        flex: 1;
+        text-align: center;
+        padding: 9px 12px;
+        border-radius: 9px;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+        color: var(--text-dim);
+        transition: all 0.25s ease;
+        border: none;
+        background: transparent;
+        font-family: inherit;
+    }
+    .mode-tab.active {
+        background: linear-gradient(135deg, rgba(142,124,255,0.2), rgba(0,212,255,0.2));
+        color: var(--acc-cyan);
+        border: 1px solid rgba(0,212,255,0.25);
+    }
+
+    /* ── Drop zone ── */
     .file-zone {
-        border: 1px dashed rgba(0, 212, 255, .25);
-        border-radius: 8px;
+        border: 1px dashed rgba(0, 212, 255, .3);
+        border-radius: 12px;
         padding: 32px 20px;
         text-align: center;
         cursor: pointer;
@@ -69,13 +100,10 @@
         margin-bottom: 14px;
         position: relative;
     }
-
-    .file-zone:hover,
-    .file-zone.drag-over {
+    .file-zone:hover, .file-zone.drag-over {
         border-color: var(--acc-cyan);
         background: rgba(0, 212, 255, .04);
     }
-
     .file-zone input[type=file] {
         position: absolute;
         inset: 0;
@@ -84,105 +112,98 @@
         width: 100%;
         height: 100%;
     }
+    .file-zone-icon { font-size: 28px; margin-bottom: 10px; color: var(--text-dim); }
+    .file-zone-text { font-size: 12px; color: var(--text-dim); }
+    .file-zone-text strong { color: var(--acc-cyan); }
+    .file-zone-hint { font-size: 10px; color: var(--text-dim); margin-top: 6px; letter-spacing: .04em; }
 
-    .file-zone-icon {
-        font-size: 28px;
-        margin-bottom: 10px;
-        color: var(--text-dim);
-    }
-
-    .file-zone-text {
-        font-size: 12px;
-        color: var(--text-dim);
-    }
-
-    .file-zone-text strong {
-        color: var(--acc-cyan);
-    }
-
-    .file-zone-hint {
-        font-size: 10px;
-        color: var(--text-dim);
-        margin-top: 6px;
-        letter-spacing: .04em;
-    }
-
-    .file-selected {
+    /* ── File list ── */
+    .file-list {
         display: none;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 14px;
+        max-height: 180px;
+        overflow-y: auto;
+    }
+    .file-list.show { display: flex; }
+    .file-item {
+        display: flex;
         align-items: center;
         gap: 10px;
-        padding: 10px 14px;
-        border-radius: var(--r);
+        padding: 9px 14px;
+        border-radius: 10px;
         background: rgba(26, 219, 126, .06);
         border: 1px solid rgba(26, 219, 126, .2);
         font-size: 11px;
         color: #6ee7b7;
-        margin-bottom: 14px;
+    }
+    .file-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-item-size { opacity: .6; font-size: 10px; flex-shrink: 0; }
+    .file-item-remove {
+        background: none; border: none; color: rgba(255,59,92,0.6);
+        cursor: pointer; font-size: 14px; padding: 0 2px; line-height: 1;
+        transition: color 0.2s;
+    }
+    .file-item-remove:hover { color: var(--acc-red); }
+
+    .batch-count {
+        font-size: 10px;
+        color: var(--acc-violet);
+        text-align: center;
+        margin-bottom: 8px;
+        letter-spacing: 0.05em;
     }
 
-    .file-selected.show {
-        display: flex;
-    }
-
+    /* ── Analyze button ── */
     .btn-analyze {
         width: 100%;
         padding: 14px;
         background: linear-gradient(90deg, var(--acc-cyan), var(--acc-violet));
         border: none;
-        border-radius: 7px;
+        border-radius: 10px;
         color: #08090c;
-        font-family: var(--serif);
+        font-family: 'Fraunces', serif;
         font-size: 15px;
         font-weight: 700;
         cursor: pointer;
-        transition: opacity .2s;
+        transition: opacity .2s, transform .2s;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
     }
-
-    .btn-analyze:hover {
-        opacity: .85;
-    }
-
-    .btn-analyze:disabled {
-        opacity: .5;
-        cursor: not-allowed;
-    }
+    .btn-analyze:hover { opacity: .85; transform: translateY(-1px); }
+    .btn-analyze:disabled { opacity: .4; cursor: not-allowed; transform: none; }
 
     .spinner {
         display: none;
-        width: 16px;
-        height: 16px;
-        border: 2px solid rgba(0, 0, 0, .3);
+        width: 16px; height: 16px;
+        border: 2px solid rgba(0,0,0,.3);
         border-top-color: #08090c;
         border-radius: 50%;
         animation: spin .6s linear infinite;
     }
+    .btn-analyze.loading .spinner { display: block; }
+    .btn-analyze.loading .btn-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    .btn-analyze.loading .spinner {
-        display: block;
+    .max-size {
+        font-size: 10px;
+        color: var(--text-dim);
+        text-align: center;
+        margin-top: 8px;
+        opacity: 0.7;
     }
 
-    .btn-analyze.loading .btn-text {
-        display: none;
-    }
-
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
+    /* ── Features ── */
     .features {
         margin-top: 24px;
         padding: 16px;
-        background: rgba(0, 0, 0, .3);
+        background: rgba(0,0,0,.25);
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: 12px;
     }
-
     .features-title {
         font-size: 9px;
         letter-spacing: .14em;
@@ -190,7 +211,6 @@
         color: var(--text-dim);
         margin-bottom: 10px;
     }
-
     .feature-item {
         display: flex;
         align-items: center;
@@ -200,61 +220,75 @@
         color: var(--text-dim);
         border-bottom: 1px solid var(--border);
     }
-
-    .feature-item:last-child {
-        border-bottom: none;
-    }
-
+    .feature-item:last-child { border-bottom: none; }
     .feature-item::before {
         content: "";
         display: block;
-        width: 5px;
-        height: 5px;
+        width: 5px; height: 5px;
         border-radius: 50%;
         background: var(--acc-cyan);
         flex-shrink: 0;
     }
-
-    .max-size {
-        font-size: 10px;
-        color: var(--text-dim);
-        text-align: center;
-        margin-top: 8px;
-    }
 </style>
 
 <div class="upload-wrap">
-    <div class="upload-panel">
+    <div class="upload-panel animate-fade">
         <div class="eyebrow">Analyse Statique</div>
         <h1 class="upload-title"><em>Malware</em><br><span>Analyzer</span></h1>
-        <p class="upload-sub">Déposez un fichier pour une analyse complète</p>
+        <p class="upload-sub">Analyse unitaire ou en masse — jusqu'à 20 fichiers simultanés</p>
 
-        <form action="{{ url_for('analysis.analyze') }}" method="POST" enctype="multipart/form-data" id="upload-form">
+        <!-- Mode tabs -->
+        <div class="mode-tabs">
+            <button class="mode-tab active" id="tab-single" onclick="switchMode('single')">
+                Fichier unique
+            </button>
+            <button class="mode-tab" id="tab-batch" onclick="switchMode('batch')">
+                Analyse en masse
+            </button>
+        </div>
+
+        <!-- Formulaire UNIQUE -->
+        <form action="{{ url_for('analysis.analyze') }}" method="POST" enctype="multipart/form-data" id="form-single">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="file-zone" id="file-zone">
-                <input type="file" name="file" id="file-input" required
+            <div class="file-zone" id="zone-single">
+                <input type="file" name="file" id="input-single" required
                     accept=".exe,.dll,.sys,.bin,.dat,.pdf,.docx,.doc,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.bmp,.zip,.rar,.7z,.js,.vbs,.ps1,.bat,.cmd,.elf,.so">
                 <div class="file-zone-icon">⬆</div>
                 <div class="file-zone-text">
                     Cliquez ou glissez un fichier ici<br>
-                    <strong>Tous types de fichiers supportés</strong>
+                    <strong>Tous types supportés</strong>
                 </div>
                 <div class="file-zone-hint">PE · ELF · PDF · Office · Images · Archives · Scripts</div>
             </div>
-
-            <div class="file-selected" id="file-selected">
-                <span>📄</span>
-                <span id="file-name-display"></span>
-                <span id="file-size-display" style="margin-left:auto;opacity:.6;"></span>
-            </div>
-
-            <button type="submit" class="btn-analyze" id="analyze-btn" disabled>
+            <div class="file-list" id="list-single"></div>
+            <button type="submit" class="btn-analyze" id="btn-single" disabled>
                 <span class="spinner"></span>
                 <span class="btn-text">Lancer l'analyse</span>
             </button>
         </form>
 
-        <div class="max-size">Taille max : 50 Mo</div>
+        <!-- Formulaire BATCH -->
+        <form action="{{ url_for('analysis.analyze_batch') }}" method="POST" enctype="multipart/form-data" id="form-batch" style="display:none">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="file-zone" id="zone-batch">
+                <input type="file" name="files" id="input-batch" multiple required
+                    accept=".exe,.dll,.sys,.bin,.dat,.pdf,.docx,.doc,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.bmp,.zip,.rar,.7z,.js,.vbs,.ps1,.bat,.cmd,.elf,.so">
+                <div class="file-zone-icon">⬆</div>
+                <div class="file-zone-text">
+                    Cliquez ou glissez <strong>plusieurs fichiers</strong> ici<br>
+                    <strong>Max 20 fichiers · 50 Mo chacun</strong>
+                </div>
+                <div class="file-zone-hint">Sélection multiple autorisée</div>
+            </div>
+            <div class="batch-count" id="batch-count" style="display:none"></div>
+            <div class="file-list" id="list-batch"></div>
+            <button type="submit" class="btn-analyze" id="btn-batch" disabled>
+                <span class="spinner"></span>
+                <span class="btn-text">Analyser tous les fichiers</span>
+            </button>
+        </form>
+
+        <div class="max-size">Taille max : 50 Mo par fichier</div>
 
         <div class="features">
             <div class="features-title">Modules d'analyse</div>
@@ -272,48 +306,118 @@
 </div>
 
 <script>
-    const input = document.getElementById('file-input');
-    const zone = document.getElementById('file-zone');
-    const selected = document.getElementById('file-selected');
-    const nameDisp = document.getElementById('file-name-display');
-    const sizeDisp = document.getElementById('file-size-display');
-    const btn = document.getElementById('analyze-btn');
-    const form = document.getElementById('upload-form');
+let batchFiles = [];
 
-    function formatSize(bytes) {
-        if (bytes < 1024) return bytes + ' B';
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-        return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(2) + ' MB';
+}
+
+// ── Mode switch ──────────────────────────────────────────────────────────────
+function switchMode(mode) {
+    const isSingle = mode === 'single';
+    document.getElementById('tab-single').classList.toggle('active', isSingle);
+    document.getElementById('tab-batch').classList.toggle('active', !isSingle);
+    document.getElementById('form-single').style.display = isSingle ? '' : 'none';
+    document.getElementById('form-batch').style.display  = isSingle ? 'none' : '';
+    // Release File object references when leaving batch mode
+    if (isSingle) { batchFiles = []; renderBatchList(); }
+}
+
+// ── Single file ──────────────────────────────────────────────────────────────
+const inputSingle = document.getElementById('input-single');
+const listSingle  = document.getElementById('list-single');
+const btnSingle   = document.getElementById('btn-single');
+const zoneSingle  = document.getElementById('zone-single');
+
+function renderSingleFile(file) {
+    listSingle.innerHTML = `
+        <div class="file-item">
+            <span>📄</span>
+            <span class="file-item-name">${file.name}</span>
+            <span class="file-item-size">${formatSize(file.size)}</span>
+        </div>`;
+    listSingle.classList.add('show');
+    btnSingle.disabled = false;
+}
+
+inputSingle.addEventListener('change', () => {
+    if (inputSingle.files[0]) renderSingleFile(inputSingle.files[0]);
+});
+
+zoneSingle.addEventListener('dragover',  e => { e.preventDefault(); zoneSingle.classList.add('drag-over'); });
+zoneSingle.addEventListener('dragleave', () => zoneSingle.classList.remove('drag-over'));
+zoneSingle.addEventListener('drop', e => {
+    e.preventDefault(); zoneSingle.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) { const dt = new DataTransfer(); dt.items.add(f); inputSingle.files = dt.files; renderSingleFile(f); }
+});
+document.getElementById('form-single').addEventListener('submit', () => {
+    btnSingle.classList.add('loading'); btnSingle.disabled = true;
+});
+
+// ── Batch files ──────────────────────────────────────────────────────────────
+const inputBatch = document.getElementById('input-batch');
+const listBatch  = document.getElementById('list-batch');
+const btnBatch   = document.getElementById('btn-batch');
+const zoneBatch  = document.getElementById('zone-batch');
+const batchCount = document.getElementById('batch-count');
+
+function renderBatchList() {
+    if (batchFiles.length === 0) {
+        listBatch.innerHTML = '';
+        listBatch.classList.remove('show');
+        batchCount.style.display = 'none';
+        btnBatch.disabled = true;
+        return;
     }
+    batchCount.style.display = '';
+    batchCount.textContent   = `${batchFiles.length} fichier(s) sélectionné(s)`;
+    listBatch.classList.add('show');
+    listBatch.innerHTML = batchFiles.map((f, i) => `
+        <div class="file-item">
+            <span>📄</span>
+            <span class="file-item-name">${f.name}</span>
+            <span class="file-item-size">${formatSize(f.size)}</span>
+            <button class="file-item-remove" onclick="removeFile(${i})" type="button" title="Retirer">×</button>
+        </div>`).join('');
+    btnBatch.disabled = false;
 
-    function handleFile(file) {
-        if (!file) return;
-        nameDisp.textContent = file.name;
-        sizeDisp.textContent = formatSize(file.size);
-        selected.classList.add('show');
-        btn.disabled = false;
-    }
+    // Sync avec l'input file
+    const dt = new DataTransfer();
+    batchFiles.forEach(f => dt.items.add(f));
+    inputBatch.files = dt.files;
+}
 
-    input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
+function removeFile(idx) {
+    batchFiles.splice(idx, 1);
+    renderBatchList();
+}
 
-    // Drag & drop
-    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-    zone.addEventListener('drop', e => {
-        e.preventDefault(); zone.classList.remove('drag-over');
-        const file = e.dataTransfer.files[0];
-        if (file) {
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            input.files = dt.files;
-            handleFile(file);
+function addFiles(fileList) {
+    const MAX = 20;
+    Array.from(fileList).forEach(f => {
+        if (batchFiles.length >= MAX) return;
+        if (!batchFiles.find(x => x.name === f.name && x.size === f.size)) {
+            batchFiles.push(f);
         }
     });
+    if (fileList.length > MAX) {
+        alert(`Maximum ${MAX} fichiers autorisés. Les fichiers supplémentaires ont été ignorés.`);
+    }
+    renderBatchList();
+}
 
-    // Loading state
-    form.addEventListener('submit', () => {
-        btn.classList.add('loading');
-        btn.disabled = true;
-    });
+inputBatch.addEventListener('change', () => addFiles(inputBatch.files));
+zoneBatch.addEventListener('dragover',  e => { e.preventDefault(); zoneBatch.classList.add('drag-over'); });
+zoneBatch.addEventListener('dragleave', () => zoneBatch.classList.remove('drag-over'));
+zoneBatch.addEventListener('drop', e => {
+    e.preventDefault(); zoneBatch.classList.remove('drag-over');
+    addFiles(e.dataTransfer.files);
+});
+document.getElementById('form-batch').addEventListener('submit', () => {
+    btnBatch.classList.add('loading'); btnBatch.disabled = true;
+});
 </script>
 {% endblock %}

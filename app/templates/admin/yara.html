@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+{% block title %}Règles YARA — Admin{% endblock %}
+
+{% block extra_head %}
+<style>
+    .page-header {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        flex-wrap: wrap; gap: 16px;
+        padding-bottom: 28px; border-bottom: 1px solid var(--border); margin-bottom: 28px;
+    }
+    .page-eyebrow { font-size: 9px; letter-spacing: .18em; color: var(--acc-violet); text-transform: uppercase; margin-bottom: 8px; }
+    .page-title   { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 900; color: var(--text-main); }
+    .page-title span { color: var(--acc-cyan); }
+
+    /* ── Rule card ── */
+    .rules-section { margin-bottom: 32px; }
+    .section-label {
+        font-size: 9px; text-transform: uppercase; letter-spacing: .14em;
+        color: var(--text-dim); margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+    }
+    .section-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+    .rules-grid { display: flex; flex-direction: column; gap: 8px; }
+
+    .rule-row {
+        display: flex; align-items: center; gap: 14px;
+        padding: 14px 18px; border-radius: 12px;
+        background: var(--bg-card); border: 1px solid var(--glass-border);
+        transition: border-color .2s;
+    }
+    .rule-row:hover { border-color: rgba(255,255,255,.18); }
+    .rule-row.disabled { opacity: .5; }
+
+    .rule-status {
+        width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+        box-shadow: 0 0 6px currentColor;
+    }
+    .rule-status.on  { background: #22c55e; color: #22c55e; }
+    .rule-status.off { background: #64748b; color: #64748b; box-shadow: none; }
+
+    .rule-name { font-size: 12px; font-weight: 600; color: var(--text-main); flex: 1; min-width: 0; }
+    .rule-desc { font-size: 10px; color: var(--text-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+
+    .sev-badge {
+        padding: 2px 9px; border-radius: 20px; font-size: 9px; font-weight: 700;
+        letter-spacing: .06em; text-transform: uppercase; border: 1px solid; flex-shrink: 0;
+    }
+    .sev-critical { background: rgba(239,68,68,.1);   color: #ef4444; border-color: rgba(239,68,68,.25); }
+    .sev-high     { background: rgba(249,115,22,.1);  color: #f97316; border-color: rgba(249,115,22,.25); }
+    .sev-medium   { background: rgba(234,179,8,.1);   color: #eab308; border-color: rgba(234,179,8,.25); }
+    .sev-low      { background: rgba(34,197,94,.1);   color: #22c55e; border-color: rgba(34,197,94,.25); }
+
+    .builtin-badge {
+        padding: 2px 9px; border-radius: 20px; font-size: 9px; font-weight: 600;
+        background: rgba(142,124,255,.1); color: var(--acc-violet);
+        border: 1px solid rgba(142,124,255,.2); flex-shrink: 0;
+    }
+
+    .rule-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-icon {
+        padding: 5px 10px; border-radius: 8px; font-size: 10px; font-weight: 600;
+        cursor: pointer; border: 1px solid; font-family: inherit;
+        transition: all .2s; letter-spacing: .04em;
+    }
+    .btn-view   { background: rgba(0,212,255,.06);  color: var(--acc-cyan); border-color: rgba(0,212,255,.2); }
+    .btn-view:hover { background: rgba(0,212,255,.15); }
+    .btn-toggle-on  { background: rgba(34,197,94,.06);  color: #22c55e; border-color: rgba(34,197,94,.2); }
+    .btn-toggle-on:hover { background: rgba(34,197,94,.15); }
+    .btn-toggle-off { background: rgba(255,184,0,.06); color: #ffb800; border-color: rgba(255,184,0,.2); }
+    .btn-toggle-off:hover { background: rgba(255,184,0,.15); }
+    .btn-del    { background: rgba(255,59,92,.06);  color: var(--acc-red); border-color: rgba(255,59,92,.2); }
+    .btn-del:hover { background: rgba(255,59,92,.15); }
+
+    /* ── Upload form ── */
+    .upload-card {
+        background: var(--bg-card); border: 1px solid var(--glass-border);
+        border-radius: 16px; padding: 28px; margin-bottom: 32px;
+    }
+    .upload-title { font-family: 'Fraunces', serif; font-size: 17px; font-weight: 700; color: var(--text-main); margin-bottom: 18px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 700px) { .form-row { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-label { font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); }
+    .form-input, .form-select, .form-textarea {
+        padding: 10px 14px; background: rgba(255,255,255,.04);
+        border: 1px solid var(--border); border-radius: 10px;
+        color: var(--text-main); font-family: 'Geist Mono', monospace; font-size: 12px;
+        transition: border-color .2s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+        outline: none; border-color: var(--acc-cyan); box-shadow: 0 0 16px rgba(0,212,255,.08);
+    }
+    .form-select option { background: #0d0f14; }
+    .form-textarea { font-size: 11px; resize: vertical; min-height: 160px; line-height: 1.6; }
+
+    .divider-or {
+        text-align: center; font-size: 9px; color: var(--text-dim);
+        text-transform: uppercase; letter-spacing: .1em; margin: 10px 0;
+    }
+
+    .file-drop {
+        border: 1px dashed rgba(0,212,255,.25); border-radius: 10px; padding: 18px;
+        text-align: center; cursor: pointer; position: relative; transition: all .2s;
+    }
+    .file-drop:hover, .file-drop.over { border-color: var(--acc-cyan); background: rgba(0,212,255,.04); }
+    .file-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .file-drop-text { font-size: 11px; color: var(--text-dim); }
+    .file-drop-text strong { color: var(--acc-cyan); }
+    .file-selected-name { font-size: 11px; color: #6ee7b7; margin-top: 6px; }
+
+    .btn-upload {
+        width: 100%; padding: 13px; margin-top: 16px;
+        background: linear-gradient(90deg, var(--acc-violet), var(--acc-cyan));
+        border: none; border-radius: 10px; color: #08090c;
+        font-family: 'Fraunces', serif; font-size: 14px; font-weight: 700;
+        cursor: pointer; transition: opacity .2s, transform .2s;
+    }
+    .btn-upload:hover { opacity: .85; transform: translateY(-1px); }
+
+    /* ── Source modal ── */
+    .source-modal-body {
+        background: rgba(0,0,0,.4); border: 1px solid var(--border);
+        border-radius: 10px; padding: 16px;
+        font-family: 'Geist Mono', monospace; font-size: 11px;
+        color: var(--text-main); white-space: pre-wrap; overflow-x: auto;
+        max-height: 400px; overflow-y: auto; line-height: 1.7; margin-top: 16px;
+    }
+
+    /* ── YARA syntax hint ── */
+    .syntax-hint {
+        background: rgba(0,0,0,.25); border: 1px solid var(--border);
+        border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+        font-size: 10px; color: var(--text-dim); line-height: 1.8;
+    }
+    .syntax-hint code {
+        font-family: 'Geist Mono', monospace; color: var(--acc-cyan);
+        background: rgba(0,212,255,.08); padding: 1px 5px; border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container animate-fade">
+
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <div class="page-eyebrow">Administration</div>
+            <h1 class="page-title">Règles <span>YARA</span></h1>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;font-size:11px;color:var(--text-dim);">
+            <span>{{ builtin_names|length }} built-in</span>
+            <span style="color:var(--border);">·</span>
+            <span>{{ custom_rules|length }} custom</span>
+        </div>
+    </div>
+
+    <!-- Upload form -->
+    <div class="upload-card">
+        <div class="upload-title">Ajouter une règle YARA</div>
+
+        <div class="syntax-hint">
+            Structure d'une règle : <code>rule Nom { meta: description="..." severity="high" mitre="T1059" strings: $a="pattern" condition: any of them }</code><br>
+            Sévérités acceptées : <code>critical</code> <code>high</code> <code>medium</code> <code>low</code> — MITRE : format <code>T1234</code> ou <code>T1234.001</code>
+        </div>
+
+        <form method="POST" action="{{ url_for('admin.yara_upload') }}" enctype="multipart/form-data" id="upload-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Nom de la règle *</label>
+                    <input type="text" name="name" class="form-input" placeholder="My_Custom_Rule" required
+                        pattern="[A-Za-z0-9_]+" title="Alphanumériques et _ uniquement">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sévérité</label>
+                    <select name="severity" class="form-select">
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:16px;">
+                <label class="form-label">Description</label>
+                <input type="text" name="description" class="form-input" placeholder="Ce que cette règle détecte…" maxlength="256">
+            </div>
+
+            <div class="form-group" style="margin-bottom:8px;">
+                <label class="form-label">Contenu de la règle (saisie directe)</label>
+                <textarea name="source" class="form-textarea" id="source-textarea"
+                    placeholder="rule Nom_Regle {&#10;    meta:&#10;        description = &quot;...&quot;&#10;        severity = &quot;high&quot;&#10;        mitre = &quot;T1059&quot;&#10;    strings:&#10;        $a = &quot;pattern&quot; nocase&#10;    condition:&#10;        any of them&#10;}"></textarea>
+            </div>
+
+            <div class="divider-or">— ou uploader un fichier .yar —</div>
+
+            <div class="file-drop" id="file-drop">
+                <input type="file" name="rule_file" id="rule-file" accept=".yar">
+                <div class="file-drop-text">Glissez un fichier <strong>.yar</strong> ici</div>
+                <div class="file-selected-name" id="file-name" style="display:none;"></div>
+            </div>
+
+            <button type="submit" class="btn-upload">Valider et ajouter la règle</button>
+        </form>
+    </div>
+
+    <!-- Built-in rules -->
+    <div class="rules-section">
+        <div class="section-label">Règles intégrées ({{ builtin_names|length }}) — non modifiables</div>
+        <div class="rules-grid">
+            {% for name in builtin_names %}
+            <div class="rule-row">
+                <div class="rule-status on"></div>
+                <div style="flex:1;min-width:0;">
+                    <div class="rule-name">{{ name }}</div>
+                </div>
+                <span class="builtin-badge">built-in</span>
+                <span class="sev-badge sev-high">active</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Custom rules -->
+    <div class="rules-section">
+        <div class="section-label">Règles personnalisées ({{ custom_rules|length }})</div>
+        {% if custom_rules %}
+        <div class="rules-grid" id="custom-rules-list">
+            {% for rule in custom_rules %}
+            <div class="rule-row {% if not rule.is_active %}disabled{% endif %}" id="rule-row-{{ rule.id }}">
+                <div class="rule-status {% if rule.is_active %}on{% else %}off{% endif %}" id="status-dot-{{ rule.id }}"></div>
+                <div style="flex:1;min-width:0;">
+                    <div class="rule-name">{{ rule.name }}</div>
+                    {% if rule.description %}
+                    <div class="rule-desc">{{ rule.description }}</div>
+                    {% endif %}
+                </div>
+                <span class="sev-badge sev-{{ rule.severity }}">{{ rule.severity }}</span>
+                <div class="rule-actions">
+                    <button class="btn-icon btn-view" onclick="viewSource({{ rule.id }}, '{{ rule.name }}')">
+                        Voir source
+                    </button>
+                    <button class="btn-icon {% if rule.is_active %}btn-toggle-on{% else %}btn-toggle-off{% endif %}"
+                            id="toggle-btn-{{ rule.id }}"
+                            onclick="toggleRule({{ rule.id }}, this)">
+                        {% if rule.is_active %}Désactiver{% else %}Activer{% endif %}
+                    </button>
+                    <form method="POST" action="{{ url_for('admin.yara_delete', rule_id=rule.id) }}"
+                          style="display:inline"
+                          onsubmit="return confirm('Supprimer la règle \'{{ rule.name }}\' ?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn-icon btn-del">Supprimer</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:30px;color:var(--text-dim);font-size:12px;">
+            Aucune règle personnalisée. Ajoutez-en une ci-dessus.
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Source viewer modal -->
+<div class="modal-overlay" id="source-modal">
+    <div class="modal" style="max-width:680px;">
+        <button class="modal-close" onclick="closeSourceModal()">×</button>
+        <div style="font-family:'Fraunces',serif;font-size:18px;font-weight:700;color:var(--text-main);margin-bottom:4px;" id="modal-rule-name"></div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;" id="modal-rule-desc"></div>
+        <pre class="source-modal-body" id="modal-source"></pre>
+    </div>
+</div>
+
+<script>
+const CSRF = "{{ csrf_token() }}";
+
+// ── File drop ──────────────────────────────────────────────────────────────
+const drop   = document.getElementById('file-drop');
+const fileIn = document.getElementById('rule-file');
+const fname  = document.getElementById('file-name');
+const srcTA  = document.getElementById('source-textarea');
+
+fileIn.addEventListener('change', () => {
+    if (fileIn.files[0]) {
+        fname.textContent = fileIn.files[0].name;
+        fname.style.display = '';
+        // Auto-read file into textarea as preview
+        const reader = new FileReader();
+        reader.onload = e => { srcTA.value = e.target.result; };
+        reader.readAsText(fileIn.files[0]);
+    }
+});
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => {
+    e.preventDefault(); drop.classList.remove('over');
+    const f = e.dataTransfer.files[0];
+    if (f) {
+        const dt = new DataTransfer(); dt.items.add(f); fileIn.files = dt.files;
+        fname.textContent = f.name; fname.style.display = '';
+        const reader = new FileReader();
+        reader.onload = ev => { srcTA.value = ev.target.result; };
+        reader.readAsText(f);
+    }
+});
+
+// ── Toggle rule ────────────────────────────────────────────────────────────
+async function toggleRule(ruleId, btn) {
+    btn.disabled = true;
+    try {
+        const resp = await fetch(`/admin/yara/${ruleId}/toggle`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' }
+        });
+        const data = await resp.json();
+        if (data.active !== undefined) {
+            const row = document.getElementById(`rule-row-${ruleId}`);
+            const dot = document.getElementById(`status-dot-${ruleId}`);
+            if (data.active) {
+                row.classList.remove('disabled');
+                dot.className = 'rule-status on';
+                btn.textContent = 'Désactiver';
+                btn.className = 'btn-icon btn-toggle-on';
+            } else {
+                row.classList.add('disabled');
+                dot.className = 'rule-status off';
+                btn.textContent = 'Activer';
+                btn.className = 'btn-icon btn-toggle-off';
+            }
+        }
+    } catch { /* silencieux */ }
+    btn.disabled = false;
+}
+
+// ── View source ────────────────────────────────────────────────────────────
+async function viewSource(ruleId, name) {
+    try {
+        const resp = await fetch(`/admin/yara/${ruleId}/source`);
+        const data = await resp.json();
+        document.getElementById('modal-rule-name').textContent = data.name;
+        document.getElementById('modal-rule-desc').textContent = data.description || '';
+        document.getElementById('modal-source').textContent    = data.source;
+        document.getElementById('source-modal').classList.add('open');
+    } catch { alert('Impossible de charger la source.'); }
+}
+
+function closeSourceModal() {
+    document.getElementById('source-modal').classList.remove('open');
+}
+document.getElementById('source-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('source-modal')) closeSourceModal();
+});
+</script>
+{% endblock %}
